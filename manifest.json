@@ -1,0 +1,9 @@
+{
+  "id": "euria-obsidian",
+  "name": "Lokales Ollama",
+  "version": "1.0.0",
+  "minAppVersion": "1.0.0",
+  "description": "Euria von Infomaniak als KI-Sparringspartner direkt in Obsidian. Zusammenfassen, strukturieren, schreiben.",
+  "author": "Frank Lechtenberg",
+  "isDesktopOnly": false
+}

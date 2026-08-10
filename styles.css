@@ -1,0 +1,195 @@
+.euria-chat-container {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+.euria-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--background-modifier-border);
+    background: var(--background-secondary);
+    flex-shrink: 0;
+}
+
+.euria-title {
+    font-weight: 600;
+    font-size: 14px;
+}
+
+.euria-clear-btn {
+    font-size: 12px;
+    padding: 2px 8px;
+    cursor: pointer;
+    background: var(--background-modifier-hover);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 4px;
+    color: var(--text-muted);
+}
+
+.euria-clear-btn:hover {
+    color: var(--text-normal);
+}
+
+.euria-context-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 5px 12px;
+    background: var(--background-modifier-hover);
+    font-size: 11px;
+    color: var(--text-accent);
+    border-bottom: 1px solid var(--background-modifier-border);
+    flex-shrink: 0;
+}
+
+.euria-ctx-remove {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--text-muted);
+    font-size: 13px;
+    line-height: 1;
+    padding: 0 2px;
+}
+
+.euria-messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    min-height: 0;
+}
+
+.euria-placeholder {
+    color: var(--text-muted);
+    text-align: center;
+    padding: 30px 16px;
+    font-size: 13px;
+    line-height: 1.6;
+}
+
+.euria-placeholder p {
+    margin: 4px 0;
+}
+
+.euria-message {
+    border-radius: 8px;
+    padding: 9px 12px;
+}
+
+.euria-message-user {
+    background: var(--interactive-accent);
+    color: var(--text-on-accent);
+    margin-left: 16px;
+}
+
+.euria-message-assistant {
+    background: var(--background-secondary);
+    border: 1px solid var(--background-modifier-border);
+    margin-right: 16px;
+}
+
+.euria-message-label {
+    font-size: 10px;
+    font-weight: 700;
+    opacity: 0.65;
+    margin-bottom: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+}
+
+.euria-message-content {
+    font-size: 13px;
+    line-height: 1.55;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+.euria-quick-actions {
+    padding: 8px 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    border-top: 1px solid var(--background-modifier-border);
+    background: var(--background-secondary);
+    flex-shrink: 0;
+}
+
+.euria-action-btn {
+    text-align: left;
+    padding: 5px 10px;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 4px;
+    background: var(--background-primary);
+    color: var(--text-normal);
+    cursor: pointer;
+    font-size: 12px;
+}
+
+.euria-action-btn:hover {
+    background: var(--background-modifier-hover);
+}
+
+.euria-input-area {
+    padding: 10px 12px;
+    border-top: 1px solid var(--background-modifier-border);
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    flex-shrink: 0;
+}
+
+.euria-input {
+    width: 100%;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 6px;
+    padding: 8px;
+    background: var(--background-primary);
+    color: var(--text-normal);
+    font-size: 13px;
+    resize: none;
+    font-family: inherit;
+    box-sizing: border-box;
+}
+
+.euria-input:focus {
+    outline: none;
+    border-color: var(--interactive-accent);
+    box-shadow: 0 0 0 2px rgba(var(--interactive-accent-rgb), 0.15);
+}
+
+.euria-input-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.euria-hint {
+    font-size: 11px;
+    color: var(--text-faint);
+}
+
+.euria-send-btn {
+    padding: 6px 16px;
+    background: var(--interactive-accent);
+    color: var(--text-on-accent);
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 500;
+}
+
+.euria-send-btn:hover {
+    opacity: 0.9;
+}
+
+.euria-send-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
