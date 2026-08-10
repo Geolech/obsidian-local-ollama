@@ -101,13 +101,13 @@ class EuriaChatView extends ItemView {
             const ph = messagesEl.createDiv('euria-placeholder');
             ph.createEl('p', { text: 'Ich bin deine lokale KI.' });
             ph.createEl('p', { text: `Modell: ${this.plugin.settings.model}` });
-            ph.createEl('p', { text: 'Lade eine Notiz als Kontext oder stelle mir eine Frage.' });
+            ph.createEl('p', { text: 'Lade eine Notiz als Kontext oder stelle eine Frage.' });
             return;
         }
 
         for (const msg of this.messages) {
             const msgEl = messagesEl.createDiv(`euria-message euria-message-${msg.role}`);
-            msgEl.createEl('div', { text: msg.role === 'user' ? 'Du' : 'Euria', cls: 'euria-message-label' });
+            msgEl.createEl('div', { text: msg.role === 'user' ? 'Du' : 'Lokale KI', cls: 'euria-message-label' });
             msgEl.createEl('div', { text: msg.content, cls: 'euria-message-content' });
         }
 
@@ -133,7 +133,7 @@ class EuriaChatView extends ItemView {
 
         const textarea = area.createEl('textarea', {
             cls: 'euria-input',
-            attr: { placeholder: 'Nachricht an Euria… (⌘+Enter senden)', rows: '3' },
+            attr: { placeholder: 'Nachricht an lokale KI… (⌘+Enter senden)', rows: '3' },
         });
 
         const footer = area.createDiv('euria-input-footer');
@@ -220,7 +220,7 @@ class EuriaChatView extends ItemView {
 
         // Add to display
         this.messages.push({ role: 'user', content: display, apiContent: userText });
-        this.messages.push({ role: 'assistant', content: '⏳ Euria denkt nach…' });
+        this.messages.push({ role: 'assistant', content: '⏳ Deine lokale KI denkt nach…' });
         this.render();
 
         try {
