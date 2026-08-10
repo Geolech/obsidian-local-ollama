@@ -2,8 +2,6 @@
 
 Ein Obsidian-Plugin, das lokale KI-Modelle via [Ollama](https://ollama.com) direkt in Obsidian einbindet – als Schreib- und Strukturassistent, der vollständig lokal läuft. Keine Cloud, keine API-Kosten, keine Datenweitergabe.
 
-![Obsidian Local Ollama Screenshot](https://raw.githubusercontent.com/Geolech/obsidian-local-ollama/main/screenshot.png)
-
 ## Features
 
 - 💬 **Chat-Interface** als Sidebar-Panel direkt in Obsidian
