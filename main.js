@@ -14,7 +14,7 @@ const DEFAULT_SETTINGS = {
     apiToken: '',
     productId: '',
     baseUrl: 'http://localhost:11434/v1',
-    model: 'llama3.1',
+    model: 'qwen2.5:7b-instruct-q8_0',
     systemPrompt: `Du bist ein präziser Schreib- und Strukturassistent für Frank Lechtenberg, Professor für Crossmedia-Journalismus an der TH OWL. Du hilfst beim Zusammenfassen, Strukturieren und Ausarbeiten von Texten – auf Deutsch, klar und direkt.
 
 SCHREIBSTIL (immer einhalten):
@@ -298,7 +298,7 @@ class EuriaSettingTab extends PluginSettingTab {
         this.plugin = plugin;
     }
 
-    display() {
+    async display() {
         const { containerEl } = this;
         containerEl.empty();
         containerEl.createEl('h2', { text: 'Lokales Ollama – Einstellungen' });
@@ -319,17 +319,59 @@ class EuriaSettingTab extends PluginSettingTab {
                 })
             );
 
-        new Setting(containerEl)
+        // Modell-Auswahl mit Dropdown + Refresh-Button
+        const modelSetting = new Setting(containerEl)
             .setName('Modell')
-            .setDesc('Ollama: llama3.1 — Infomaniak: google/gemma-4-31B-it')
-            .addText(t => t
-                .setPlaceholder('llama3.1')
-                .setValue(this.plugin.settings.model)
-                .onChange(async v => {
-                    this.plugin.settings.model = v.trim() || DEFAULT_SETTINGS.model;
-                    await this.plugin.saveSettings();
-                })
-            );
+            .setDesc('Wähle ein lokal installiertes Ollama-Modell oder trage einen Cloud-Modellnamen ein.');
+
+        let modelDropdown = null;
+
+        const buildDropdown = (models) => {
+            modelSetting.controlEl.empty();
+
+            // Dropdown
+            const select = modelSetting.controlEl.createEl('select', { cls: 'dropdown' });
+            select.style.marginRight = '8px';
+
+            // Falls das aktuelle Modell nicht in der Liste ist, trotzdem anzeigen
+            const allModels = models.includes(this.plugin.settings.model)
+                ? models
+                : [this.plugin.settings.model, ...models];
+
+            for (const m of allModels) {
+                const opt = select.createEl('option', { text: m, value: m });
+                if (m === this.plugin.settings.model) opt.selected = true;
+            }
+
+            select.onchange = async () => {
+                this.plugin.settings.model = select.value;
+                await this.plugin.saveSettings();
+            };
+            modelDropdown = select;
+
+            // Refresh-Button
+            const refreshBtn = modelSetting.controlEl.createEl('button', { text: '↻ Aktualisieren' });
+            refreshBtn.onclick = () => loadModels();
+        };
+
+        const loadModels = async () => {
+            try {
+                const base = this.plugin.settings.baseUrl.replace(/\/v1\/?$/, '');
+                const resp = await requestUrl({ url: `${base}/api/tags`, method: 'GET', throw: false });
+                if (resp.status === 200) {
+                    const names = (resp.json.models || []).map(m => m.name).sort();
+                    if (names.length > 0) {
+                        buildDropdown(names);
+                        return;
+                    }
+                }
+            } catch (_) {}
+            // Fallback: Textfeld
+            buildDropdown([this.plugin.settings.model]);
+            new Notice('Ollama nicht erreichbar – Modellname manuell eintragen.');
+        };
+
+        await loadModels();
 
         new Setting(containerEl)
             .setName('API-Token (optional)')
