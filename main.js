@@ -133,11 +133,11 @@ class EuriaChatView extends ItemView {
 
         const textarea = area.createEl('textarea', {
             cls: 'euria-input',
-            attr: { placeholder: 'Nachricht an lokale KI… (⌘+Enter senden)', rows: '3' },
+            attr: { placeholder: 'Nachricht an lokale KI… (Shift+Enter senden)', rows: '3' },
         });
 
         const footer = area.createDiv('euria-input-footer');
-        footer.createEl('span', { text: '⌘ + Enter zum Senden', cls: 'euria-hint' });
+        footer.createEl('span', { text: 'Shift + Enter zum Senden', cls: 'euria-hint' });
         const sendBtn = footer.createEl('button', { text: 'Senden', cls: 'euria-send-btn' });
 
         const send = async () => {
@@ -149,8 +149,9 @@ class EuriaChatView extends ItemView {
 
         sendBtn.onclick = send;
         textarea.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+            if (e.key === 'Enter' && e.shiftKey) {
                 e.preventDefault();
+                e.stopPropagation();
                 send();
             }
         });
