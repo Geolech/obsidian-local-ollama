@@ -1,14 +1,14 @@
 /*
- * Euria Obsidian Plugin
- * Euria von Infomaniak als KI-Sparringspartner direkt in Obsidian.
- * Infomaniak AI API ist OpenAI-kompatibel.
+ * Lokales Ollama Obsidian Plugin
+ * Lokale KI (Ollama) als Schreib- und Strukturassistent direkt in Obsidian.
+ * Kompatibel mit jedem OpenAI-kompatiblen Endpoint (z. B. Ollama, LM Studio).
  */
 
 'use strict';
 
 const { Plugin, PluginSettingTab, Setting, ItemView, WorkspaceLeaf, MarkdownView, Notice, requestUrl, addIcon } = require('obsidian');
 
-const EURIA_VIEW_TYPE = 'euria-chat-view';
+const LOCAL_AI_VIEW_TYPE = 'euria-chat-view';
 
 const DEFAULT_SETTINGS = {
     apiToken: '',
@@ -48,7 +48,7 @@ Antworte präzise und ohne Selbstinszenierung. Der Text zählt, nicht die Ankün
 
 // ─── Chat View ───────────────────────────────────────────────────────────────
 
-class EuriaChatView extends ItemView {
+class LocalAIChatView extends ItemView {
     constructor(leaf, plugin) {
         super(leaf);
         this.plugin = plugin;
@@ -57,7 +57,7 @@ class EuriaChatView extends ItemView {
         this.isLoading = false;
     }
 
-    getViewType() { return EURIA_VIEW_TYPE; }
+    getViewType() { return LOCAL_AI_VIEW_TYPE; }
     getDisplayText() { return 'Lokales Ollama'; }
     getIcon() { return 'ollama-llama'; }
 
@@ -189,7 +189,7 @@ class EuriaChatView extends ItemView {
         const activeView = this.app.workspace.getActiveViewOfType(MarkdownView);
         if (activeView?.file) return activeView.file;
 
-        // If Euria panel is focused, the markdown view won't be "active".
+        // If the Local AI panel is focused, the markdown view won't be "active".
         // Search all leaves for the most recently used markdown view.
         let found = null;
         this.app.workspace.iterateAllLeaves(leaf => {
@@ -209,7 +209,7 @@ class EuriaChatView extends ItemView {
 
     async sendMessage(userText, displayText = null) {
         if (!this.plugin.settings.baseUrl) {
-            new Notice('Bitte zuerst den API-Endpunkt in den Euria-Einstellungen eintragen.');
+            new Notice('Bitte zuerst den API-Endpunkt in den Einstellungen eintragen.');
             return;
         }
 
@@ -292,7 +292,7 @@ class EuriaChatView extends ItemView {
 
 // ─── Settings Tab ─────────────────────────────────────────────────────────────
 
-class EuriaSettingTab extends PluginSettingTab {
+class LocalAISettingTab extends PluginSettingTab {
     constructor(app, plugin) {
         super(app, plugin);
         this.plugin = plugin;
@@ -309,7 +309,7 @@ class EuriaSettingTab extends PluginSettingTab {
 
         new Setting(containerEl)
             .setName('API-Endpunkt (Base URL)')
-            .setDesc('Ollama lokal: http://localhost:11434/v1 — Infomaniak AI: https://api.infomaniak.com/2/ai/{product_id}/openai/v1')
+            .setDesc('Ollama lokal: http://localhost:11434/v1 — funktioniert mit jedem OpenAI-kompatiblen Endpoint (z. B. LM Studio)')
             .addText(t => t
                 .setPlaceholder('http://localhost:11434/v1')
                 .setValue(this.plugin.settings.baseUrl)
@@ -387,7 +387,7 @@ class EuriaSettingTab extends PluginSettingTab {
 
         new Setting(containerEl)
             .setName('System-Prompt')
-            .setDesc('Grundlegende Verhaltensanweisung für Euria')
+            .setDesc('Grundlegende Verhaltensanweisung für die lokale KI')
             .addTextArea(t => {
                 t.setPlaceholder('System-Prompt…')
                     .setValue(this.plugin.settings.systemPrompt)
@@ -399,20 +399,12 @@ class EuriaSettingTab extends PluginSettingTab {
                 t.inputEl.style.width = '100%';
             });
 
-        containerEl.createEl('h3', { text: 'Wo finde ich die Product-ID?' });
-        const howto = containerEl.createEl('ol');
-        [
-            'manager.infomaniak.com aufrufen',
-            'Linkes Menü: AI Services → Euria',
-            'Auf dein Euria-Produkt klicken',
-            'Die Zahl in der URL oder den Produktdetails ist die Product-ID',
-        ].forEach(step => howto.createEl('li', { text: step }));
     }
 }
 
 // ─── Plugin ───────────────────────────────────────────────────────────────────
 
-class EuriaPlugin extends Plugin {
+class LocalOllamaPlugin extends Plugin {
     async onload() {
         await this.loadSettings();
 
@@ -428,55 +420,55 @@ class EuriaPlugin extends Plugin {
             <rect x="54" y="76" width="8" height="18" rx="4" fill="currentColor"/>
         `);
 
-        this.registerView(EURIA_VIEW_TYPE, leaf => new EuriaChatView(leaf, this));
+        this.registerView(LOCAL_AI_VIEW_TYPE, leaf => new LocalAIChatView(leaf, this));
 
         this.addRibbonIcon('ollama-llama', 'Lokales Ollama öffnen', () => this.activateView());
 
         this.addCommand({
             id: 'open-euria-chat',
-            name: 'Euria Chat öffnen',
+            name: 'Lokale KI Chat öffnen',
             callback: () => this.activateView(),
         });
 
         this.addCommand({
             id: 'euria-summarize-note',
-            name: 'Aktuelle Notiz mit Euria zusammenfassen',
+            name: 'Aktuelle Notiz zusammenfassen',
             callback: async () => {
                 await this.activateView();
-                const leaf = this.app.workspace.getLeavesOfType(EURIA_VIEW_TYPE)[0];
+                const leaf = this.app.workspace.getLeavesOfType(LOCAL_AI_VIEW_TYPE)[0];
                 if (leaf?.view) leaf.view.summarizeCurrentNote();
             },
         });
 
         this.addCommand({
             id: 'euria-structure-note',
-            name: 'Struktur für aktuelle Notiz von Euria vorschlagen lassen',
+            name: 'Struktur für aktuelle Notiz vorschlagen',
             callback: async () => {
                 await this.activateView();
-                const leaf = this.app.workspace.getLeavesOfType(EURIA_VIEW_TYPE)[0];
+                const leaf = this.app.workspace.getLeavesOfType(LOCAL_AI_VIEW_TYPE)[0];
                 if (leaf?.view) leaf.view.structureCurrentNote();
             },
         });
 
         this.addCommand({
             id: 'euria-load-context',
-            name: 'Aktuelle Notiz als Euria-Kontext laden',
+            name: 'Aktuelle Notiz als Kontext laden',
             callback: async () => {
                 await this.activateView();
-                const leaf = this.app.workspace.getLeavesOfType(EURIA_VIEW_TYPE)[0];
+                const leaf = this.app.workspace.getLeavesOfType(LOCAL_AI_VIEW_TYPE)[0];
                 if (leaf?.view) leaf.view.loadNoteAsContext();
             },
         });
 
-        this.addSettingTab(new EuriaSettingTab(this.app, this));
+        this.addSettingTab(new LocalAISettingTab(this.app, this));
     }
 
     async activateView() {
         const { workspace } = this.app;
-        let leaf = workspace.getLeavesOfType(EURIA_VIEW_TYPE)[0];
+        let leaf = workspace.getLeavesOfType(LOCAL_AI_VIEW_TYPE)[0];
         if (!leaf) {
             leaf = workspace.getRightLeaf(false);
-            await leaf.setViewState({ type: EURIA_VIEW_TYPE, active: true });
+            await leaf.setViewState({ type: LOCAL_AI_VIEW_TYPE, active: true });
         }
         workspace.revealLeaf(leaf);
     }
@@ -492,4 +484,4 @@ class EuriaPlugin extends Plugin {
     }
 }
 
-module.exports = EuriaPlugin;
+module.exports = LocalOllamaPlugin;
