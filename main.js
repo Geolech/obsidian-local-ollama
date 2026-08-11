@@ -10,6 +10,19 @@ const { Plugin, PluginSettingTab, Setting, ItemView, WorkspaceLeaf, MarkdownView
 
 const LOCAL_AI_VIEW_TYPE = 'euria-chat-view';
 
+/**
+ * Prüft, ob eine URL sicher für ausgehende Requests ist.
+ * Lässt nur http: und https: zu, blockiert file://, javascript:// etc.
+ */
+function isSafeUrl(url) {
+    try {
+        const u = new URL(url);
+        return ['http:', 'https:'].includes(u.protocol);
+    } catch (_) {
+        return false;
+    }
+}
+
 const DEFAULT_SETTINGS = {
     apiToken: '',
     productId: '',
@@ -226,6 +239,9 @@ class LocalAIChatView extends ItemView {
 
         try {
             const baseUrl = this.plugin.settings.baseUrl.replace(/\/$/, '');
+            if (!isSafeUrl(baseUrl)) {
+                throw new Error(`Unsichere URL in den Einstellungen: "${baseUrl}". Nur http:// und https:// sind erlaubt.`);
+            }
             const endpoint = `${baseUrl}/chat/completions`;
 
             const headers = { 'Content-Type': 'application/json' };
@@ -357,6 +373,7 @@ class LocalAISettingTab extends PluginSettingTab {
         const loadModels = async () => {
             try {
                 const base = this.plugin.settings.baseUrl.replace(/\/v1\/?$/, '');
+                if (!isSafeUrl(base)) return;
                 const resp = await requestUrl({ url: `${base}/api/tags`, method: 'GET', throw: false });
                 if (resp.status === 200) {
                     const names = (resp.json.models || []).map(m => m.name).sort();

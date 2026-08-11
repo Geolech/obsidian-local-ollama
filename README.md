@@ -6,12 +6,12 @@ Ein Obsidian-Plugin, das lokale KI-Modelle via [Ollama](https://ollama.com) dire
 
 ## Features
 
-- 💬 **Chat-Interface** als Sidebar-Panel direkt in Obsidian
-- 📋 **Notiz zusammenfassen** – aktuelle Notiz mit einem Klick komprimieren
-- 🏗️ **Struktur vorschlagen** – Gliederung für die offene Notiz entwickeln
-- 📌 **Kontext laden** – Notiz als Hintergrundwissen für den Chat bereitstellen
-- ✍️ **Schreibstil-Prompt** – vorkonfiguriert gegen typische KI-Muster (kein aufgeblähter Stil, kein Nominalstil, keine Floskeln)
-- 🔄 **Flexibel** – funktioniert mit jedem OpenAI-kompatiblen Endpoint (Ollama, LM Studio, Infomaniak AI u.a.)
+- **Chat-Interface** als Sidebar-Panel direkt in Obsidian
+- **Notiz zusammenfassen** – aktuelle Notiz mit einem Klick komprimieren
+- **Struktur vorschlagen** – Gliederung für die offene Notiz entwickeln
+- **Kontext laden** – Notiz als Hintergrundwissen für den Chat bereitstellen
+- **Schreibstil-Prompt** – vorkonfiguriert gegen typische KI-Muster (kein aufgeblähter Stil, kein Nominalstil, keine Floskeln)
+- **Flexibel** – funktioniert mit jedem OpenAI-kompatiblen Endpoint (Ollama, LM Studio, Infomaniak AI u.a.)
 
 ## Voraussetzungen
 
