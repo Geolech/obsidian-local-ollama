@@ -27,15 +27,19 @@ curl -fsSL https://ollama.com/install.sh | sh
 ### 2. Modell laden
 
 ```bash
-ollama pull llama3.1
+ollama pull gemma3:12b
 ```
 
-Empfohlene Modelle:
-| Modell | Größe | Stärke |
-|--------|-------|--------|
-| `llama3.1` | 4,9 GB | Allgemein, Deutsch gut |
-| `mistral` | 4,1 GB | Schreiben, Zusammenfassen |
-| `qwen2.5:7b` | 4,7 GB | Mehrsprachig, Strukturierung |
+Empfohlene Modelle je nach Hardware:
+
+| Modell | RAM-Bedarf | Stärke |
+|--------|-----------|--------|
+| `gemma3:12b` | ~8 GB | Bestes Deutsch, wenig Halluzination – **Empfehlung** |
+| `llama3.1:8b` | ~5 GB | Sehr stabil, breiter Einsatz |
+| `qwen2.5:7b` | ~5 GB | Mehrsprachig, Strukturierung |
+| `gemma3:4b` | ~3 GB | Für ältere/schwächere Hardware |
+
+> **Hinweis zu Modellgrößen:** 7B- und 8B-Modelle neigen stärker zu Halluzinationen als 12B-Modelle. Für zuverlässiges Deutsch empfehlen wir `gemma3:12b` auf Systemen mit mindestens 16 GB RAM.
 
 ### 3. Ollama starten
 
@@ -63,7 +67,7 @@ ollama list
 
 1. **Obsidian → Einstellungen → Lokales Ollama**
 2. **API-Endpunkt:** `http://localhost:11434/v1` (Standard für Ollama)
-3. **Modell:** z.B. `llama3.1`
+3. **Modell:** z.B. `gemma3:12b`
 4. **API-Token:** leer lassen (Ollama benötigt keinen Token)
 
 ## Andere Endpoints
@@ -79,11 +83,22 @@ Das Plugin funktioniert mit jedem OpenAI-kompatiblen Endpoint:
 
 *Infomaniak AI erfordert ein Business-Abo.
 
+## Websuche hinzufügen (optional)
+
+Das Plugin selbst unterstützt keine Websuche – Ollama kann nicht direkt im Internet suchen. Wer Websuche mit lokalen Modellen benötigt, kann **Open WebUI** parallel betreiben:
+
+1. [Pinokio](https://pinokio.computer) installieren
+2. In Pinokio **Open WebUI** suchen und installieren
+3. Open WebUI öffnen → Admin Panel → Einstellungen → Websuche → **DDGS** (DuckDuckGo, kein API-Key nötig) aktivieren
+4. Im Chat das **Websuche-Symbol** aktivieren
+
+Open WebUI verbindet sich automatisch mit dem laufenden Ollama und nutzt dasselbe Modell. Das Plugin bleibt für schnelle Notiz-Arbeit direkt in Obsidian – Open WebUI für Recherche mit Internetanbindung.
+
 ## Tastenkürzel
 
 | Aktion | Shortcut |
 |--------|----------|
-| Nachricht senden | `⌘ + Enter` |
+| Nachricht senden | `Shift + Enter` |
 | Chat leeren | Schaltfläche oben rechts |
 
 ## Lizenz
