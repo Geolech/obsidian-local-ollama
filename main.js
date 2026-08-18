@@ -27,7 +27,7 @@ const DEFAULT_SETTINGS = {
     apiToken: '',
     productId: '',
     baseUrl: 'http://localhost:11434/v1',
-    model: 'qwen2.5:7b-instruct-q8_0',
+    model: 'gemma3:12b',
     systemPrompt: `Du bist ein präziser Schreib- und Strukturassistent für Frank Lechtenberg, Professor für Crossmedia-Journalismus an der TH OWL. Du hilfst beim Zusammenfassen, Strukturieren und Ausarbeiten von Texten – auf Deutsch, klar und direkt.
 
 SCHREIBSTIL (immer einhalten):
