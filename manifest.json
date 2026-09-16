@@ -1,7 +1,7 @@
 {
   "id": "local-ollama-websearch",
   "name": "Local Ollama with Web Search",
-  "version": "2.1.0",
+  "version": "2.2.0",
   "minAppVersion": "1.0.0",
   "description": "Chat with local Ollama AI models directly in Obsidian. Includes built-in DuckDuckGo web search – no API key, no cloud, no telemetry.",
   "author": "Frank Lechtenberg",
