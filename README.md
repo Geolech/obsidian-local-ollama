@@ -1,17 +1,27 @@
 # Obsidian Local Ollama
 
-Ein Obsidian-Plugin, das lokale KI-Modelle via [Ollama](https://ollama.com) direkt in Obsidian einbindet – als Schreib- und Strukturassistent, der vollständig lokal läuft. Keine Cloud, keine API-Kosten, keine Datenweitergabe.
+Ein Obsidian-Plugin, das lokale KI-Modelle via [Ollama](https://ollama.com) direkt in Obsidian einbindet – als Schreib- und Strukturassistent mit integrierter Websuche. Vollständig lokal, keine Cloud, keine API-Kosten, keine Datenweitergabe.
 
 ![Obsidian Local Ollama Screenshot](https://raw.githubusercontent.com/Geolech/obsidian-local-ollama/main/screenshot.png)
 
 ## Features
 
-- **Chat-Interface** als Sidebar-Panel direkt in Obsidian
-- **Notiz zusammenfassen** – aktuelle Notiz mit einem Klick komprimieren
-- **Struktur vorschlagen** – Gliederung für die offene Notiz entwickeln
-- **Kontext laden** – Notiz als Hintergrundwissen für den Chat bereitstellen
-- **Schreibstil-Prompt** – vorkonfiguriert gegen typische KI-Muster (kein aufgeblähter Stil, kein Nominalstil, keine Floskeln)
+- **🔍 Websuche direkt im Chat** – sucht automatisch via DuckDuckGo, speist die Ergebnisse als Kontext in Ollama ein und antwortet mit Quellenangaben – kein Browser, kein externes Tool nötig
+- **🏠 Lokale Anfragen** – klassischer Chat mit dem lokalen Modell ohne Internetzugriff
+- **📋 Notiz zusammenfassen** – aktuelle Notiz mit einem Klick komprimieren
+- **🏗️ Struktur vorschlagen** – Gliederung für die offene Notiz entwickeln
+- **📌 Kontext laden** – Notiz als Hintergrundwissen für den Chat bereitstellen
 - **Vollständig lokal** – keine Cloud, kein API-Token, keine Telemetrie
+
+## Websuche
+
+Das Plugin sucht direkt über die freie [DuckDuckGo](https://duckduckgo.com)-Engine – kein API-Key, keine Registrierung, keine Kosten. Die Top-5-Treffer werden automatisch als Kontext an das lokale Modell übergeben, das daraus eine strukturierte Antwort mit Quellenangaben `[1]`, `[2]` etc. formuliert.
+
+**Nutzung:**
+- Suchanfrage ins Textfeld eingeben
+- `Shift+Enter` drücken oder auf **🔍 Websuche** klicken
+
+**Lokale Anfragen** (ohne Internet) mit `Option+Enter` oder **🏠 Lokale Anfrage**.
 
 ## Voraussetzungen
 
@@ -60,7 +70,7 @@ ollama list
 ### Manuell
 
 1. Neueste Version unter [Releases](https://github.com/Geolech/obsidian-local-ollama/releases) herunterladen
-2. `main.js`, `manifest.json` und `styles.css` in den Ordner `.obsidian/plugins/obsidian-local-ollama/` im Vault kopieren
+2. `main.js`, `manifest.json` und `styles.css` in den Ordner `.obsidian/plugins/euria-obsidian/` im Vault kopieren
 3. Obsidian neu starten → Plugin in den Einstellungen aktivieren
 
 ## Einrichtung
@@ -71,22 +81,12 @@ ollama list
 
 Das Plugin verbindet sich automatisch mit `http://localhost:11434` – keine weitere Konfiguration nötig.
 
-## Websuche hinzufügen (optional)
-
-Das Plugin selbst unterstützt keine Websuche – Ollama kann nicht direkt im Internet suchen. Wer Websuche mit lokalen Modellen benötigt, kann **Open WebUI** parallel betreiben:
-
-1. [Pinokio](https://pinokio.computer) installieren
-2. In Pinokio **Open WebUI** suchen und installieren
-3. Open WebUI öffnen → Admin Panel → Einstellungen → Websuche → **DDGS** (DuckDuckGo, kein API-Key nötig) aktivieren
-4. Im Chat das **Websuche-Symbol** aktivieren
-
-Open WebUI verbindet sich automatisch mit dem laufenden Ollama und nutzt dasselbe Modell. Das Plugin bleibt für schnelle Notiz-Arbeit direkt in Obsidian – Open WebUI für Recherche mit Internetanbindung.
-
 ## Tastenkürzel
 
 | Aktion | Shortcut |
 |--------|----------|
-| Nachricht senden | `Shift + Enter` |
+| Websuche starten | `Shift + Enter` |
+| Lokale Anfrage senden | `Option + Enter` |
 | Chat leeren | Schaltfläche oben rechts |
 
 ## Lizenz

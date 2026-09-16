@@ -120,12 +120,14 @@ class OllamaChatView extends ItemView {
         const area     = container.createDiv('euria-input-area');
         const textarea = area.createEl('textarea', {
             cls:  'euria-input',
-            attr: { placeholder: 'Nachricht an Ollama… (Shift+Enter senden)', rows: '3' },
+            attr: { placeholder: 'Nachricht an Ollama…', rows: '3' },
         });
+        this._textarea = textarea;
 
-        const footer  = area.createDiv('euria-input-footer');
-        footer.createEl('span', { text: 'Shift + Enter zum Senden', cls: 'euria-hint' });
-        const sendBtn = footer.createEl('button', { text: 'Senden', cls: 'euria-send-btn' });
+        const footer    = area.createDiv('euria-input-footer');
+        const searchBtn = footer.createEl('button', { text: '🔍 Websuche',      cls: 'euria-action-btn' });
+        const sendBtn   = footer.createEl('button', { text: '🏠 Lokale Anfrage', cls: 'euria-send-btn' });
+        area.createEl('p', { text: 'Shift+Enter = Websuche · Option+Enter = Lokale Anfrage', cls: 'euria-hint' });
 
         const send = async () => {
             const text = textarea.value.trim();
@@ -134,9 +136,16 @@ class OllamaChatView extends ItemView {
             await this.sendMessage(text);
         };
 
-        sendBtn.onclick = send;
+        sendBtn.onclick   = send;
+        searchBtn.onclick = () => this.startWebSearch();
         textarea.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter' && e.shiftKey) { e.preventDefault(); e.stopPropagation(); send(); }
+            if (e.key === 'Enter' && e.shiftKey) {
+                e.preventDefault(); e.stopPropagation();
+                this.startWebSearch();
+            } else if (e.key === 'Enter' && e.altKey) {
+                e.preventDefault(); e.stopPropagation();
+                send();
+            }
         });
     }
 
@@ -169,6 +178,112 @@ class OllamaChatView extends ItemView {
             `Analysiere diese Notiz und schlage eine verbesserte Gliederung vor. Zeige Hauptpunkte und Unterpunkte klar strukturiert:\n\n---\n${content}\n---`,
             `🏗️ Strukturvorschlag für „${file.basename}"`
         );
+    }
+
+    // ─── Web Search ──────────────────────────────────────────────────────────
+
+    startWebSearch() {
+        if (this.isLoading) return;
+        const query = this._textarea?.value?.trim();
+        if (!query) {
+            new Notice('Bitte zuerst eine Suchanfrage ins Textfeld eingeben.');
+            return;
+        }
+        this._textarea.value = '';
+        this.webSearch(query);
+    }
+
+    async webSearch(query) {
+        this.isLoading = true;
+        this.messages.push({ role: 'user',      content: `🔍 Websuche: ${query}`, apiContent: query });
+        this.messages.push({ role: 'assistant', content: '🔍 Suche läuft…' });
+        this.render();
+
+        try {
+            const results = await this._fetchDDGResults(query);
+            if (!results.length) throw new Error('Keine Suchergebnisse gefunden.');
+
+            // Ergebnisse als lesbaren Kontext aufbereiten
+            const context = results
+                .map((r, i) => `[${i + 1}] ${r.title}\n${r.url}\n${r.snippet}`)
+                .join('\n\n');
+
+            const prompt =
+                `Beantworte die folgende Frage auf Basis der Suchergebnisse. ` +
+                `Nenne die Quellen mit [1], [2] etc. Antworte auf Deutsch, klar und direkt.\n\n` +
+                `Frage: ${query}\n\nSuchergebnisse:\n${context}`;
+
+            // Lademeldung durch Ollama-Antwort ersetzen
+            this.messages[this.messages.length - 1] = {
+                role: 'assistant', content: '💬 Ollama wertet die Ergebnisse aus…'
+            };
+            this.render();
+
+            const apiMessages = this._buildApiMessages(prompt);
+            // Letzten Dummy-Eintrag aus History entfernen (wird durch API-Call ersetzt)
+            apiMessages.pop();
+            apiMessages.push({ role: 'user', content: prompt });
+
+            const response = await requestUrl({
+                url:    `${OLLAMA_BASE_URL}/v1/chat/completions`,
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    model:       this.plugin.settings.model,
+                    messages:    apiMessages,
+                    max_tokens:  2048,
+                    temperature: 0.7,
+                }),
+                throw: false,
+            });
+
+            if (response.status === 0 || response.status >= 500) {
+                throw new Error('Ollama nicht erreichbar. Läuft der Dienst? → ollama serve');
+            }
+            if (response.status >= 400) {
+                throw new Error(`Ollama Fehler ${response.status}: ${response.text}`);
+            }
+
+            const reply = response.json?.choices?.[0]?.message?.content?.trim() || 'Keine Antwort erhalten.';
+            this.messages[this.messages.length - 1] = { role: 'assistant', content: reply };
+
+        } catch (err) {
+            const errMsg = `❌ ${err.message}`;
+            this.messages[this.messages.length - 1] = { role: 'assistant', content: errMsg };
+            new Notice(errMsg);
+        }
+
+        this.isLoading = false;
+        this.render();
+    }
+
+    async _fetchDDGResults(query) {
+        const url = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}&kl=de-de`;
+        const response = await requestUrl({
+            url,
+            method: 'GET',
+            headers: { 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36' },
+            throw: false,
+        });
+
+        if (response.status !== 200) throw new Error(`DuckDuckGo nicht erreichbar (${response.status}).`);
+
+        const parser = new DOMParser();
+        const doc    = parser.parseFromString(response.text, 'text/html');
+
+        const results  = [];
+        const titles   = doc.querySelectorAll('.result__a');
+        const snippets = doc.querySelectorAll('.result__snippet');
+        const urls     = doc.querySelectorAll('.result__url');
+
+        for (let i = 0; i < Math.min(5, snippets.length); i++) {
+            const title   = titles[i]?.textContent?.trim()   || '';
+            const snippet = snippets[i]?.textContent?.trim() || '';
+            const url     = urls[i]?.textContent?.trim()     || '';
+            if (snippet) results.push({ title, snippet, url });
+        }
+
+        return results;
     }
 
     _getActiveFile() {
