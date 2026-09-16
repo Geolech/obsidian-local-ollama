@@ -49,7 +49,7 @@ class OllamaChatView extends ItemView {
     }
 
     getViewType()    { return OLLAMA_VIEW_TYPE; }
-    getDisplayText() { return 'Ollama'; }
+    getDisplayText() { return 'Local Ollama'; }
     getIcon()        { return 'ollama-llama'; }
 
     async onOpen()  { this.render(); }
@@ -69,8 +69,8 @@ class OllamaChatView extends ItemView {
 
     _renderHeader(container) {
         const header = container.createDiv('euria-header');
-        header.createEl('span', { text: '🦙 Ollama', cls: 'euria-title' });
-        const clearBtn = header.createEl('button', { text: 'Leeren', cls: 'euria-clear-btn' });
+        header.createEl('span', { text: '🦙 Local Ollama', cls: 'euria-title' });
+        const clearBtn = header.createEl('button', { text: 'Clear', cls: 'euria-clear-btn' });
         clearBtn.onclick = () => {
             this.messages    = [];
             this.noteContext = null;
@@ -90,15 +90,15 @@ class OllamaChatView extends ItemView {
 
         if (this.messages.length === 0) {
             const ph = messagesEl.createDiv('euria-placeholder');
-            ph.createEl('p', { text: 'Ich bin deine lokale KI.' });
-            ph.createEl('p', { text: `Modell: ${this.plugin.settings.model}` });
-            ph.createEl('p', { text: 'Lade eine Notiz als Kontext oder stelle eine Frage.' });
+            ph.createEl('p', { text: 'Your local AI assistant.' });
+            ph.createEl('p', { text: `Model: ${this.plugin.settings.model}` });
+            ph.createEl('p', { text: 'Load a note as context or ask a question.' });
             return;
         }
 
         for (const msg of this.messages) {
             const msgEl = messagesEl.createDiv(`euria-message euria-message-${msg.role}`);
-            msgEl.createEl('div', { text: msg.role === 'user' ? 'Du' : 'Ollama', cls: 'euria-message-label' });
+            msgEl.createEl('div', { text: msg.role === 'user' ? 'You' : 'Ollama', cls: 'euria-message-label' });
             msgEl.createEl('div', { text: msg.content, cls: 'euria-message-content' });
         }
 
@@ -111,23 +111,23 @@ class OllamaChatView extends ItemView {
             const b = actions.createEl('button', { text, cls: 'euria-action-btn' });
             b.onclick = fn;
         };
-        btn('📋 Aktuelle Notiz zusammenfassen',          () => this.summarizeCurrentNote());
-        btn('🏗️ Struktur für aktuelle Notiz vorschlagen', () => this.structureCurrentNote());
-        btn('📌 Aktuelle Notiz als Kontext laden',        () => this.loadNoteAsContext());
+        btn('📋 Summarize current note',    () => this.summarizeCurrentNote());
+        btn('🏗️ Suggest structure for note', () => this.structureCurrentNote());
+        btn('📌 Load note as context',       () => this.loadNoteAsContext());
     }
 
     _renderInputArea(container) {
         const area     = container.createDiv('euria-input-area');
         const textarea = area.createEl('textarea', {
             cls:  'euria-input',
-            attr: { placeholder: 'Nachricht an Ollama…', rows: '3' },
+            attr: { placeholder: 'Message to Ollama…', rows: '3' },
         });
         this._textarea = textarea;
 
         const footer    = area.createDiv('euria-input-footer');
-        const searchBtn = footer.createEl('button', { text: '🔍 Websuche',      cls: 'euria-action-btn' });
-        const sendBtn   = footer.createEl('button', { text: '🏠 Lokale Anfrage', cls: 'euria-send-btn' });
-        area.createEl('p', { text: 'Shift+Enter = Websuche · Ctrl+Enter = Lokale Anfrage', cls: 'euria-hint' });
+        const searchBtn = footer.createEl('button', { text: '🔍 Web Search',   cls: 'euria-action-btn' });
+        const sendBtn   = footer.createEl('button', { text: '🏠 Local Query',  cls: 'euria-send-btn' });
+        area.createEl('p', { text: 'Shift+Enter = Web Search · Ctrl+Enter = Local Query', cls: 'euria-hint' });
 
         const send = async () => {
             const text = textarea.value.trim();
@@ -186,7 +186,7 @@ class OllamaChatView extends ItemView {
         if (this.isLoading) return;
         const query = this._textarea?.value?.trim();
         if (!query) {
-            new Notice('Bitte zuerst eine Suchanfrage ins Textfeld eingeben.');
+            new Notice('Please enter a search query in the text field first.');
             return;
         }
         this._textarea.value = '';
@@ -196,12 +196,12 @@ class OllamaChatView extends ItemView {
     async webSearch(query) {
         this.isLoading = true;
         this.messages.push({ role: 'user',      content: `🔍 Websuche: ${query}`, apiContent: query });
-        this.messages.push({ role: 'assistant', content: '🔍 Suche läuft…' });
+        this.messages.push({ role: 'assistant', content: '🔍 Searching…' });
         this.render();
 
         try {
             const results = await this._fetchDDGResults(query);
-            if (!results.length) throw new Error('Keine Suchergebnisse gefunden.');
+            if (!results.length) throw new Error('No search results found.');
 
             // Ergebnisse als lesbaren Kontext aufbereiten
             const context = results
@@ -209,13 +209,13 @@ class OllamaChatView extends ItemView {
                 .join('\n\n');
 
             const prompt =
-                `Beantworte die folgende Frage auf Basis der Suchergebnisse. ` +
-                `Nenne die Quellen mit [1], [2] etc. Antworte auf Deutsch, klar und direkt.\n\n` +
-                `Frage: ${query}\n\nSuchergebnisse:\n${context}`;
+                `Answer the following question based on the search results. ` +
+                `Cite sources as [1], [2] etc. Be clear and concise.\n\n` +
+                `Question: ${query}\n\nSearch results:\n${context}`;
 
             // Lademeldung durch Ollama-Antwort ersetzen
             this.messages[this.messages.length - 1] = {
-                role: 'assistant', content: '💬 Ollama wertet die Ergebnisse aus…'
+                role: 'assistant', content: '💬 Ollama is processing the results…'
             };
             this.render();
 
@@ -238,13 +238,13 @@ class OllamaChatView extends ItemView {
             });
 
             if (response.status === 0 || response.status >= 500) {
-                throw new Error('Ollama nicht erreichbar. Läuft der Dienst? → ollama serve');
+                throw new Error('Ollama not reachable. Is the service running? → ollama serve');
             }
             if (response.status >= 400) {
                 throw new Error(`Ollama Fehler ${response.status}: ${response.text}`);
             }
 
-            const reply = response.json?.choices?.[0]?.message?.content?.trim() || 'Keine Antwort erhalten.';
+            const reply = response.json?.choices?.[0]?.message?.content?.trim() || 'No response received.';
             this.messages[this.messages.length - 1] = { role: 'assistant', content: reply };
 
         } catch (err) {
@@ -266,7 +266,7 @@ class OllamaChatView extends ItemView {
             throw: false,
         });
 
-        if (response.status !== 200) throw new Error(`DuckDuckGo nicht erreichbar (${response.status}).`);
+        if (response.status !== 200) throw new Error(`DuckDuckGo not reachable (${response.status}).`);
 
         const parser = new DOMParser();
         const doc    = parser.parseFromString(response.text, 'text/html');
@@ -296,7 +296,7 @@ class OllamaChatView extends ItemView {
         });
 
         if (!found) {
-            new Notice('Keine offene Notiz gefunden. Bitte eine Notiz im Editor öffnen.');
+            new Notice('No open note found. Please open a note in the editor.');
             return null;
         }
         return found;
@@ -328,13 +328,13 @@ class OllamaChatView extends ItemView {
             });
 
             if (response.status === 0 || response.status >= 500) {
-                throw new Error('Ollama nicht erreichbar. Läuft der Dienst? → ollama serve');
+                throw new Error('Ollama not reachable. Is the service running? → ollama serve');
             }
             if (response.status >= 400) {
                 throw new Error(`Ollama Fehler ${response.status}: ${response.text}`);
             }
 
-            const reply = response.json?.choices?.[0]?.message?.content?.trim() || 'Keine Antwort erhalten.';
+            const reply = response.json?.choices?.[0]?.message?.content?.trim() || 'No response received.';
             this.messages[this.messages.length - 1] = { role: 'assistant', content: reply };
 
         } catch (err) {
@@ -376,32 +376,32 @@ class OllamaSettingTab extends PluginSettingTab {
     async display() {
         const { containerEl } = this;
         containerEl.empty();
-        containerEl.createEl('h2', { text: 'Lokales Ollama – Einstellungen' });
+        containerEl.createEl('h2', { text: 'Local Ollama – Settings' });
 
-        // Onboarding-Hinweis
+        // Onboarding hint
         const info = containerEl.createDiv({ cls: 'setting-item-description' });
         info.style.marginBottom = '16px';
         info.style.lineHeight   = '1.6';
-        info.createEl('strong', { text: 'Voraussetzung: ' });
-        info.appendText('Ollama muss auf deinem Rechner installiert sein und laufen (');
+        info.createEl('strong', { text: 'Requirement: ' });
+        info.appendText('Ollama must be installed and running on your machine (');
         const ollamaLink = info.createEl('a', { text: 'ollama.com', href: 'https://ollama.com' });
         ollamaLink.setAttr('target', '_blank');
-        info.appendText('). Installiere danach ein Modell, z. B. mit ');
+        info.appendText('). Then install a model, e.g. ');
         info.createEl('code', { text: 'ollama pull gemma3:12b' });
-        info.appendText(' im Terminal. Weitere Infos und Modellempfehlungen im ');
-        const ghLink = info.createEl('a', { text: 'GitHub-Repository', href: 'https://github.com/Geolech/obsidian-local-ollama' });
+        info.appendText(' in your terminal. More info and model recommendations on ');
+        const ghLink = info.createEl('a', { text: 'GitHub', href: 'https://github.com/Geolech/obsidian-local-ollama' });
         ghLink.setAttr('target', '_blank');
         info.appendText('.');
 
         containerEl.createEl('p', {
-            text: `Verbunden mit: ${OLLAMA_BASE_URL}`,
+            text: `Connected to: ${OLLAMA_BASE_URL}`,
             cls:  'setting-item-description',
         });
 
-        // Modell-Auswahl mit Dropdown + Refresh-Button
+        // Model selector with dropdown + refresh button
         const modelSetting = new Setting(containerEl)
-            .setName('Modell')
-            .setDesc('Lokal installierte Ollama-Modelle. Klicke ↻ um die Liste zu aktualisieren.');
+            .setName('Model')
+            .setDesc('Locally installed Ollama models. Click ↻ to refresh the list.');
 
         const buildDropdown = (models) => {
             modelSetting.controlEl.empty();
@@ -436,14 +436,14 @@ class OllamaSettingTab extends PluginSettingTab {
                 }
             } catch (_) {}
             buildDropdown([this.plugin.settings.model]);
-            new Notice('Ollama nicht erreichbar. Bitte "ollama serve" starten.');
+            new Notice('Ollama not reachable. Please run "ollama serve".');
         };
 
         await loadModels();
 
         new Setting(containerEl)
-            .setName('System-Prompt')
-            .setDesc('Verhaltensanweisung für Ollama')
+            .setName('System Prompt')
+            .setDesc('Behavioral instruction for Ollama')
             .addTextArea(t => {
                 t.setPlaceholder('System-Prompt…')
                     .setValue(this.plugin.settings.systemPrompt)
@@ -475,17 +475,17 @@ class LocalOllamaPlugin extends Plugin {
         `);
 
         this.registerView(OLLAMA_VIEW_TYPE, leaf => new OllamaChatView(leaf, this));
-        this.addRibbonIcon('ollama-llama', 'Ollama öffnen', () => this.activateView());
+        this.addRibbonIcon('ollama-llama', 'Open Local Ollama', () => this.activateView());
 
         this.addCommand({
             id:       'open-ollama-chat',
-            name:     'Ollama Chat öffnen',
+            name:     'Open Ollama Chat',
             callback: () => this.activateView(),
         });
 
         this.addCommand({
             id:       'ollama-summarize-note',
-            name:     'Aktuelle Notiz zusammenfassen',
+            name:     'Summarize current note',
             callback: async () => {
                 await this.activateView();
                 const leaf = this.app.workspace.getLeavesOfType(OLLAMA_VIEW_TYPE)[0];
@@ -495,7 +495,7 @@ class LocalOllamaPlugin extends Plugin {
 
         this.addCommand({
             id:       'ollama-structure-note',
-            name:     'Struktur für aktuelle Notiz vorschlagen',
+            name:     'Suggest structure for current note',
             callback: async () => {
                 await this.activateView();
                 const leaf = this.app.workspace.getLeavesOfType(OLLAMA_VIEW_TYPE)[0];
@@ -505,7 +505,7 @@ class LocalOllamaPlugin extends Plugin {
 
         this.addCommand({
             id:       'ollama-load-context',
-            name:     'Aktuelle Notiz als Kontext laden',
+            name:     'Load current note as context',
             callback: async () => {
                 await this.activateView();
                 const leaf = this.app.workspace.getLeavesOfType(OLLAMA_VIEW_TYPE)[0];
