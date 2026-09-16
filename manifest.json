@@ -1,10 +1,10 @@
 {
   "id": "local-ollama-websearch",
   "name": "Local Ollama with Web Search",
-  "version": "2.3.0",
+  "version": "2.3.1",
   "minAppVersion": "1.0.0",
-  "description": "Chat with local Ollama AI models directly in Obsidian. Includes built-in DuckDuckGo web search – no API key, no cloud, no telemetry.",
+  "description": "Chat with local Ollama AI models. Includes built-in DuckDuckGo web search – no API key, no cloud, no telemetry.",
   "author": "Frank Lechtenberg",
-  "authorUrl": "https://github.com/Geolech/obsidian-local-ollama",
+  "authorUrl": "https://github.com/Geolech",
   "isDesktopOnly": false
 }
