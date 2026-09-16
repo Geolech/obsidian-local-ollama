@@ -6,11 +6,11 @@ Ein Obsidian-Plugin, das lokale KI-Modelle via [Ollama](https://ollama.com) dire
 
 ## Features
 
-- **🔍 Websuche direkt im Chat** – sucht automatisch via DuckDuckGo, speist die Ergebnisse als Kontext in Ollama ein und antwortet mit Quellenangaben – kein Browser, kein externes Tool nötig
-- **🏠 Lokale Anfragen** – klassischer Chat mit dem lokalen Modell ohne Internetzugriff
-- **📋 Notiz zusammenfassen** – aktuelle Notiz mit einem Klick komprimieren
-- **🏗️ Struktur vorschlagen** – Gliederung für die offene Notiz entwickeln
-- **📌 Kontext laden** – Notiz als Hintergrundwissen für den Chat bereitstellen
+- **Websuche direkt im Chat** – sucht automatisch via DuckDuckGo, speist die Ergebnisse als Kontext in Ollama ein und antwortet mit Quellenangaben – kein Browser, kein externes Tool nötig
+- **Lokale Anfragen** – klassischer Chat mit dem lokalen Modell ohne Internetzugriff
+- **Notiz zusammenfassen** – aktuelle Notiz mit einem Klick komprimieren
+- **Struktur vorschlagen** – Gliederung für die offene Notiz entwickeln
+- **Kontext laden** – Notiz als Hintergrundwissen für den Chat bereitstellen
 - **Vollständig lokal** – keine Cloud, kein API-Token, keine Telemetrie
 
 ## Websuche
