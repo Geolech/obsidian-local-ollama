@@ -21,7 +21,7 @@ Das Plugin sucht direkt über die freie [DuckDuckGo](https://duckduckgo.com)-Eng
 - Suchanfrage ins Textfeld eingeben
 - `Shift+Enter` drücken oder auf **🔍 Websuche** klicken
 
-**Lokale Anfragen** (ohne Internet) mit `Option+Enter` oder **🏠 Lokale Anfrage**.
+**Lokale Anfragen** (ohne Internet) mit `Ctrl+Enter` oder **🏠 Lokale Anfrage**.
 
 ## Voraussetzungen
 
@@ -86,7 +86,7 @@ Das Plugin verbindet sich automatisch mit `http://localhost:11434` – keine wei
 | Aktion | Shortcut |
 |--------|----------|
 | Websuche starten | `Shift + Enter` |
-| Lokale Anfrage senden | `Option + Enter` |
+| Lokale Anfrage senden | `Ctrl + Enter` |
 | Chat leeren | Schaltfläche oben rechts |
 
 ## Lizenz
