@@ -1,4 +1,4 @@
-# Obsidian Local Ollama
+# Local Ollama with Web Search
 
 Ein Obsidian-Plugin, das lokale KI-Modelle via [Ollama](https://ollama.com) direkt in Obsidian einbindet – als Schreib- und Strukturassistent mit integrierter Websuche. Vollständig lokal, keine Cloud, keine API-Kosten, keine Datenweitergabe.
 
