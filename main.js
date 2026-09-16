@@ -127,7 +127,7 @@ class OllamaChatView extends ItemView {
         const footer    = area.createDiv('euria-input-footer');
         const searchBtn = footer.createEl('button', { text: '🔍 Websuche',      cls: 'euria-action-btn' });
         const sendBtn   = footer.createEl('button', { text: '🏠 Lokale Anfrage', cls: 'euria-send-btn' });
-        area.createEl('p', { text: 'Shift+Enter = Websuche · Option+Enter = Lokale Anfrage', cls: 'euria-hint' });
+        area.createEl('p', { text: 'Shift+Enter = Websuche · Ctrl+Enter = Lokale Anfrage', cls: 'euria-hint' });
 
         const send = async () => {
             const text = textarea.value.trim();
@@ -142,7 +142,7 @@ class OllamaChatView extends ItemView {
             if (e.key === 'Enter' && e.shiftKey) {
                 e.preventDefault(); e.stopPropagation();
                 this.startWebSearch();
-            } else if (e.key === 'Enter' && e.altKey) {
+            } else if (e.key === 'Enter' && e.ctrlKey) {
                 e.preventDefault(); e.stopPropagation();
                 send();
             }
