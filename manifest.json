@@ -1,9 +1,9 @@
 {
   "id": "euria-obsidian",
   "name": "Lokales Ollama",
-  "version": "1.0.3",
+  "version": "2.0.0",
   "minAppVersion": "1.0.0",
-  "description": "Lokale KI (Ollama) als Schreib- und Strukturassistent direkt in Obsidian. Zusammenfassen, strukturieren, schreiben.",
+  "description": "Lokale KI (Ollama) direkt in Obsidian. Läuft vollständig lokal – keine Cloud, kein API-Token, keine Telemetrie.",
   "author": "Frank Lechtenberg",
   "isDesktopOnly": false
 }

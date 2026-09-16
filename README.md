@@ -11,7 +11,7 @@ Ein Obsidian-Plugin, das lokale KI-Modelle via [Ollama](https://ollama.com) dire
 - **Struktur vorschlagen** – Gliederung für die offene Notiz entwickeln
 - **Kontext laden** – Notiz als Hintergrundwissen für den Chat bereitstellen
 - **Schreibstil-Prompt** – vorkonfiguriert gegen typische KI-Muster (kein aufgeblähter Stil, kein Nominalstil, keine Floskeln)
-- **Flexibel** – funktioniert mit jedem OpenAI-kompatiblen Endpoint (Ollama, LM Studio, Infomaniak AI u.a.)
+- **Vollständig lokal** – keine Cloud, kein API-Token, keine Telemetrie
 
 ## Voraussetzungen
 
@@ -66,22 +66,10 @@ ollama list
 ## Einrichtung
 
 1. **Obsidian → Einstellungen → Lokales Ollama**
-2. **API-Endpunkt:** `http://localhost:11434/v1` (Standard für Ollama)
-3. **Modell:** z.B. `gemma3:12b`
-4. **API-Token:** leer lassen (Ollama benötigt keinen Token)
+2. **Modell** aus der Dropdown-Liste wählen (wird automatisch von Ollama geladen)
+3. Optional: System-Prompt anpassen
 
-## Andere Endpoints
-
-Das Plugin funktioniert mit jedem OpenAI-kompatiblen Endpoint:
-
-| Anbieter | Base URL | Token |
-|----------|----------|-------|
-| Ollama (lokal) | `http://localhost:11434/v1` | – |
-| LM Studio | `http://localhost:1234/v1` | – |
-| Infomaniak AI* | `https://api.infomaniak.com/2/ai/{product_id}/openai/v1` | API-Token |
-| OpenAI | `https://api.openai.com/v1` | API-Key |
-
-*Infomaniak AI erfordert ein Business-Abo.
+Das Plugin verbindet sich automatisch mit `http://localhost:11434` – keine weitere Konfiguration nötig.
 
 ## Websuche hinzufügen (optional)
 
