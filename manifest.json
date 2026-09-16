@@ -1,7 +1,7 @@
 {
   "id": "euria-obsidian",
   "name": "Lokales Ollama",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "minAppVersion": "1.0.0",
   "description": "Lokale KI (Ollama) direkt in Obsidian. Läuft vollständig lokal – keine Cloud, kein API-Token, keine Telemetrie.",
   "author": "Frank Lechtenberg",
