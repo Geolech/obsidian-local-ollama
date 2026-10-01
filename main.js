@@ -504,6 +504,17 @@ const SAVE_TRIGGER_PATTERNS = [
     /\bsave\s+(this|that)\s+as\s+(a\s+)?note/i,
 ];
 
+// Trigger-Phrasen für den Daily-Note-Flow (case-insensitive)
+const DAILY_TRIGGER_PATTERNS = [
+    /\bhalte\s+(das|dies(es)?)\s+.{0,20}daily\s*note/i,
+    /\bhalte\s+.{0,15}in\s+(einer|der|meiner)\s+daily\s*note\s+fest/i,
+    /\bnotier(e)?\s+(das|mir|dir)?\s*(als|für|in\s+die)?\s*(daily\s*note|heute|tageseintrag)/i,
+    /\btrag(e)?\s+(das|dies(es)?)\s+in\s+(die|meine)\s+daily\s*note/i,
+    /\bin\s+(die|meine)\s+daily\s*note\s+(ein)?(tragen|schreiben|anfügen|anhängen)/i,
+    /\blog\s+(this|that)\s+(to|in)\s+(my\s+)?(daily\s*note|today)/i,
+    /\badd\s+(this|that)\s+to\s+(my\s+)?(daily\s*note|today)/i,
+];
+
 // ─── Chat View ───────────────────────────────────────────────────────────────
 
 class OllamaChatView extends ItemView {
@@ -625,11 +636,18 @@ class OllamaChatView extends ItemView {
             const text = textarea.value.trim();
             if (!text || this.isLoading) return;
 
-            // Trigger-Phrasen für Speichern erkennen – öffnet Modal statt Prompt an Ollama
-            if (this.plugin.settings.saveTriggerEnabled && this._matchesSaveTrigger(text)) {
-                textarea.value = '';
-                this.openSaveModal();
-                return;
+            // Trigger-Phrasen erkennen – öffnet entsprechendes Modal statt Prompt an Ollama
+            if (this.plugin.settings.saveTriggerEnabled) {
+                if (this._matchesDailyTrigger(text)) {
+                    textarea.value = '';
+                    this.openDailyNoteFlow();
+                    return;
+                }
+                if (this._matchesSaveTrigger(text)) {
+                    textarea.value = '';
+                    this.openSaveModal();
+                    return;
+                }
             }
 
             textarea.value = '';
@@ -849,6 +867,10 @@ class OllamaChatView extends ItemView {
 
     _matchesSaveTrigger(text) {
         return SAVE_TRIGGER_PATTERNS.some(rx => rx.test(text));
+    }
+
+    _matchesDailyTrigger(text) {
+        return DAILY_TRIGGER_PATTERNS.some(rx => rx.test(text));
     }
 
     openSaveModal() {
