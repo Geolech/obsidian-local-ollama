@@ -29,6 +29,12 @@ const I18N = {
         btnSummarize:    '📋 Summarize current note',
         btnStructure:    '🏗️ Suggest structure for note',
         btnContext:      '📌 Load note as context',
+        btnLoadChat:     '📂 Load chat from active note',
+        cmdLoadChat:     'Load chat from active note',
+        loadChatNoFile:  'No note is active. Open a saved Ollama chat first.',
+        loadChatNotOllama:'The active note is not a saved Ollama chat (missing source: Lokales Ollama Plugin in frontmatter).',
+        loadChatEmpty:   'Could not find a conversation section in this note.',
+        loadChatSuccess: (n) => `Loaded ${n} messages into chat.`,
         contextBar:      (t) => `📄 Context: ${t}`,
         noNote:          'No open note found. Please open a note in the editor.',
         noQuery:         'Please enter a search query in the text field first.',
@@ -178,6 +184,12 @@ const I18N = {
         btnSummarize:    '📋 Aktuelle Notiz zusammenfassen',
         btnStructure:    '🏗️ Struktur für aktuelle Notiz vorschlagen',
         btnContext:      '📌 Aktuelle Notiz als Kontext laden',
+        btnLoadChat:     '📂 Chat aus aktiver Notiz laden',
+        cmdLoadChat:     'Chat aus aktiver Notiz laden',
+        loadChatNoFile:  'Keine Notiz aktiv. Öffne zuerst einen gespeicherten Ollama-Chat.',
+        loadChatNotOllama:'Die aktive Notiz ist kein gespeicherter Ollama-Chat (fehlendes source: Lokales Ollama Plugin im Frontmatter).',
+        loadChatEmpty:   'Konnte keinen Verlaufs-Abschnitt in dieser Notiz finden.',
+        loadChatSuccess: (n) => `${n} Nachrichten in den Chat geladen.`,
         contextBar:      (t) => `📄 Kontext: ${t}`,
         noNote:          'Keine offene Notiz gefunden. Bitte eine Notiz im Editor öffnen.',
         noQuery:         'Bitte zuerst eine Suchanfrage ins Textfeld eingeben.',
@@ -535,7 +547,18 @@ class OllamaChatView extends ItemView {
     getDisplayText() { return 'Local Ollama'; }
     getIcon()        { return 'ollama-llama'; }
 
-    async onOpen()  { this.render(); }
+    async onOpen() {
+        // Letzte gespeicherte Session beim ersten Öffnen übernehmen
+        if (this.plugin.sessionData && !this.messages.length) {
+            if (Array.isArray(this.plugin.sessionData.messages)) {
+                this.messages = this.plugin.sessionData.messages;
+            }
+            if (this.plugin.sessionData.noteContext) {
+                this.noteContext = this.plugin.sessionData.noteContext;
+            }
+        }
+        this.render();
+    }
     async onClose() {}
 
     render() {
@@ -579,6 +602,7 @@ class OllamaChatView extends ItemView {
             this.messages    = [];
             this.noteContext = null;
             this.render();
+            this.plugin.persistSession(this);
         };
     }
 
@@ -587,7 +611,7 @@ class OllamaChatView extends ItemView {
         const bar = container.createDiv('euria-context-bar');
         bar.createEl('span', { text: t.contextBar(this.noteContext.title) });
         const rm = bar.createEl('button', { text: '✕', cls: 'euria-ctx-remove' });
-        rm.onclick = () => { this.noteContext = null; this.render(); };
+        rm.onclick = () => { this.noteContext = null; this.render(); this.plugin.persistSession(this); };
     }
 
     _renderMessages(container) {
@@ -621,6 +645,7 @@ class OllamaChatView extends ItemView {
         btn(t.btnSummarize, () => this.summarizeCurrentNote());
         btn(t.btnStructure, () => this.structureCurrentNote());
         btn(t.btnContext,   () => this.loadNoteAsContext());
+        btn(t.btnLoadChat,  () => this.loadChatFromActiveNote());
     }
 
     _renderInputArea(container) {
@@ -681,6 +706,7 @@ class OllamaChatView extends ItemView {
         const content    = await this.app.vault.read(file);
         this.noteContext = { title: file.basename, content };
         this.render();
+        this.plugin.persistSession(this);
         new Notice(t.contextLoaded(file.basename));
     }
 
@@ -774,6 +800,7 @@ class OllamaChatView extends ItemView {
 
         this.isLoading = false;
         this.render();
+        this.plugin.persistSession(this);
     }
 
     async _fetchDDGResults(query) {
@@ -866,9 +893,58 @@ class OllamaChatView extends ItemView {
 
         this.isLoading = false;
         this.render();
+        this.plugin.persistSession(this);
     }
 
     // ─── Save to Vault ────────────────────────────────────────────────────────
+
+    // ─── Chat aus Notiz laden ─────────────────────────────────────────────────
+
+    async loadChatFromActiveNote() {
+        const t = I18N[this.plugin.settings.language] || I18N.en;
+        const file = this._getActiveFile();
+        if (!file) { new Notice(t.loadChatNoFile); return; }
+
+        const raw = await this.app.vault.read(file);
+
+        // Frontmatter prüfen – nur Ollama-Chat-Dateien
+        if (!/^---\s*[\s\S]*?source:\s*Lokales Ollama Plugin/i.test(raw)) {
+            new Notice(t.loadChatNotOllama);
+            return;
+        }
+
+        const parsed = this._parseChatMarkdown(raw);
+        if (!parsed.length) { new Notice(t.loadChatEmpty); return; }
+
+        this.messages = parsed;
+        this.noteContext = null;
+        this.render();
+        this.plugin.persistSession(this);
+        new Notice(t.loadChatSuccess(parsed.length));
+    }
+
+    /**
+     * Parst eine gespeicherte Ollama-Chat-Markdown-Datei zurück in Nachrichten.
+     * Sucht die Verlaufs-Sektion und extrahiert ### Du / ### Ollama Blöcke.
+     */
+    _parseChatMarkdown(raw) {
+        // Alles vor dem ersten "### Du" / "### You" / "### Ollama" verwerfen (Frontmatter, Callout, Verlauf-Heading)
+        const firstMsgIdx = raw.search(/^###\s+(Du|You|Ollama)\s*$/m);
+        if (firstMsgIdx === -1) return [];
+        const body = raw.slice(firstMsgIdx);
+
+        const blocks = body.split(/^###\s+(Du|You|Ollama)\s*$\n?/m);
+        // split result: ['', 'Du', 'content1', 'Ollama', 'content2', ...]
+        const messages = [];
+        for (let i = 1; i < blocks.length; i += 2) {
+            const label = blocks[i].trim();
+            const content = (blocks[i + 1] || '').trim();
+            if (!content) continue;
+            const role = /^(Du|You)$/i.test(label) ? 'user' : 'assistant';
+            messages.push({ role, content });
+        }
+        return messages;
+    }
 
     _matchesSaveTrigger(text) {
         return SAVE_TRIGGER_PATTERNS.some(rx => rx.test(text));
@@ -2246,6 +2322,16 @@ class LocalOllamaPlugin extends Plugin {
         });
 
         this.addCommand({
+            id:       'ollama-load-chat-from-note',
+            name:     t.cmdLoadChat,
+            callback: async () => {
+                await this.activateView();
+                const leaf = this.app.workspace.getLeavesOfType(OLLAMA_VIEW_TYPE)[0];
+                if (leaf?.view) leaf.view.loadChatFromActiveNote();
+            },
+        });
+
+        this.addCommand({
             id:       'ollama-vault-setup',
             name:     t.cmdSetup,
             callback: () => new VaultSetupModal(this.app, this, I18N[this.settings.language] || I18N.en).open(),
@@ -2272,9 +2358,23 @@ class LocalOllamaPlugin extends Plugin {
 
     onunload() {}
 
+    persistSession(view) {
+        this.sessionData = {
+            messages:    (view.messages || []).slice(-50), // Cap: nicht endlos wachsen lassen
+            noteContext: view.noteContext || null,
+        };
+        // Fire-and-forget – kein await nötig im UI-Pfad
+        this._writeAll();
+    }
+
+    async _writeAll() {
+        await this.saveData({ ...this.settings, _session: this.sessionData || null });
+    }
+
     async loadSettings() {
         // Migriere alte Einstellungen: apiToken, productId, baseUrl entfernen
         const saved = await this.loadData() || {};
+        this.sessionData = saved._session || null;
         const { model, systemPrompt, language,
                 saveFallbackFolder, saveTriggerEnabled, saveDefaultTags, saveOpenAfter,
                 contextFolder, contextFolderEnabled, contextFolderMaxChars, contextCreateDefaults,
@@ -2297,7 +2397,7 @@ class LocalOllamaPlugin extends Plugin {
     }
 
     async saveSettings() {
-        await this.saveData(this.settings);
+        await this._writeAll();
     }
 }
 
