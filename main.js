@@ -506,13 +506,18 @@ const SAVE_TRIGGER_PATTERNS = [
 
 // Trigger-Phrasen für den Daily-Note-Flow (case-insensitive)
 const DAILY_TRIGGER_PATTERNS = [
+    /\bdaily\s*note\b/i, // allgemein: taucht "Daily Note" im Text auf, ist meistens Daily-Note-Flow gemeint
     /\bhalte\s+(das|dies(es)?)\s+.{0,20}daily\s*note/i,
     /\bhalte\s+.{0,15}in\s+(einer|der|meiner)\s+daily\s*note\s+fest/i,
     /\bnotier(e)?\s+(das|mir|dir)?\s*(als|für|in\s+die)?\s*(daily\s*note|heute|tageseintrag)/i,
     /\btrag(e)?\s+(das|dies(es)?)\s+in\s+(die|meine)\s+daily\s*note/i,
     /\bin\s+(die|meine)\s+daily\s*note\s+(ein)?(tragen|schreiben|anfügen|anhängen)/i,
+    /\bspeicher(e|st)?\s+(das|dies(es)?)?\s*(als|in\s+(die|einer?|meine))\s*daily\s*note/i,
+    /\bleg(e|st)?\s+(das|dies(es)?)?\s*(als|in\s+(die|meine))\s*daily\s*note/i,
+    /\btageseintrag\b/i,
     /\blog\s+(this|that)\s+(to|in)\s+(my\s+)?(daily\s*note|today)/i,
     /\badd\s+(this|that)\s+to\s+(my\s+)?(daily\s*note|today)/i,
+    /\bsave\s+(this|that)\s+(as|to|in)\s+(my\s+|a\s+)?daily\s*note/i,
 ];
 
 // ─── Chat View ───────────────────────────────────────────────────────────────
