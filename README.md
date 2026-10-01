@@ -86,16 +86,20 @@ ollama list
 
 ## Installation
 
-> Dieses Plugin ist **nicht** im offiziellen Obsidian Community Store gelistet. Installation läuft über BRAT oder manuell.
+### Via Obsidian Community Plugin Store (empfohlen)
 
-### Via BRAT (empfohlen)
+1. **Obsidian → Einstellungen → Community-Plugins → Durchsuchen**
+2. Nach **„Local Ollama with Web Search"** suchen
+3. **Installieren** → **Aktivieren**
+
+Updates werden danach automatisch von Obsidian eingespielt.
+
+### Via BRAT (für Beta-Versionen vor Store-Release)
 
 1. [BRAT Plugin](https://github.com/TfTHacker/obsidian42-brat) in Obsidian installieren und aktivieren
 2. BRAT-Einstellungen öffnen → **Add Beta Plugin**
 3. URL eingeben: `https://github.com/Geolech/obsidian-local-ollama`
 4. **Add Plugin** klicken → Plugin aktivieren
-
-BRAT prüft dann automatisch auf neue Releases.
 
 ### Manuell
 
