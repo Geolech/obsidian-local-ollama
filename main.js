@@ -6,7 +6,7 @@
 
 'use strict';
 
-const { Plugin, PluginSettingTab, Setting, ItemView, MarkdownView, Notice, requestUrl, addIcon } = require('obsidian');
+const { Plugin, PluginSettingTab, Setting, ItemView, MarkdownView, Modal, TFolder, Notice, requestUrl, addIcon } = require('obsidian');
 
 const OLLAMA_VIEW_TYPE = 'euria-chat-view';
 const OLLAMA_BASE_URL  = 'http://localhost:11434';
@@ -64,6 +64,83 @@ const I18N = {
         cmdSummarize:    'Summarize current note',
         cmdStructure:    'Suggest structure for current note',
         cmdContext:      'Load current note as context',
+        cmdSave:         'Save chat to vault',
+        cmdSetup:        'Set up vault folder structure',
+        cmdOrganize:     'Organize existing folders into structure',
+        // Save-to-Vault
+        saveBtn:              '💾 Save',
+        saveNothing:          'No messages to save yet.',
+        saveModalTitle:       'Save chat to vault',
+        saveModalFolder:      'Folder',
+        saveModalFolderHint:  'Model suggestion · existing folders available in dropdown',
+        saveModalFilename:    'Filename',
+        saveModalFilenameHint: '.md is appended automatically',
+        saveModalTags:        'Tags (optional, comma-separated)',
+        saveModalPreview:     'Preview',
+        saveModalOpenAfter:   'Open file after saving',
+        saveModalCancel:      'Cancel',
+        saveModalSave:        'Save',
+        saveSuggesting:       'Suggesting folder…',
+        savedNotice:          (p) => `Saved: ${p}`,
+        saveFailed:           (m) => `Save failed: ${m}`,
+        saveCalloutTitle:     'AI-generated content',
+        saveCalloutBody:      (d, t, m) => `This chat was recorded on ${d} at ${t} with \`${m}\` via the "Local Ollama" plugin.`,
+        saveHistoryHeading:   'Conversation',
+        // Vault Setup
+        settingsSaveSection:  'Save to vault',
+        settingsSaveFallback: 'Fallback folder',
+        settingsSaveFallbackD:'Used when no folder suggestion is available',
+        settingsSaveTrigger:  'Trigger phrases active',
+        settingsSaveTriggerD: 'Phrases like "save that" / "speicher das" open the save modal',
+        settingsSaveTags:     'Default tags',
+        settingsSaveTagsD:    'Comma-separated, always added to frontmatter',
+        settingsSaveOpen:     'Open file after saving',
+        settingsSaveOpenD:    'Opens the new note in the editor right after saving',
+        settingsSetupSection: 'Vault setup',
+        settingsSetupD:       'Creates a PARA-style folder structure in this vault. Folders only, no content.',
+        settingsSetupBtn:     'Set up folder structure…',
+        setupModalTitle:      'Set up vault structure',
+        setupModalIntro:      'Creates a PARA-style folder structure in this vault. Only folders, no content. Existing folders are left untouched.',
+        setupModalTemplate:   'Template',
+        setupModalPara:       'PARA (recommended)',
+        setupModalMinimal:    'Minimal (Inbox + Archive only)',
+        setupModalCustom:     'Custom selection',
+        setupModalFolders:    'Folders to be created',
+        setupModalCancel:     'Cancel',
+        setupModalCreate:     'Create structure',
+        setupModalDone:       (c, s) => `${c} folder(s) created, ${s} already existed.`,
+        setupModalOrganizeAsk:(n) => `${n} existing top-level folder(s) don't match the template. Organize now?`,
+        setupModalOrganizeYes:'Organize now',
+        setupModalOrganizeNo: 'Later',
+        // Organize
+        settingsOrganizeBtn:  'Organize existing folders…',
+        settingsOrganizeD:    'Move or rename existing top-level folders into the PARA structure. Wikilinks are updated automatically.',
+        organizeModalTitle:   'Organize existing folders',
+        organizeModalIntro:   'These top-level folders don\'t match the PARA template. Choose for each what should happen. Wikilinks will be updated automatically.',
+        organizeModalNone:    'All top-level folders already match the template. Nothing to organize.',
+        organizeActionKeep:   'Keep as is',
+        organizeActionMove:   'Move to',
+        organizeActionRename: 'Rename to',
+        organizeTargetPlaceholder: 'Target folder',
+        organizeRenamePlaceholder: 'New name',
+        organizeRun:          'Apply changes',
+        organizeDone:         (m, r, s, f) => `Done: ${m} moved, ${r} renamed, ${s} skipped, ${f} failed.`,
+        conflictModalTitle:   'Name conflict',
+        conflictModalBody:    (src, dest) => `"${src}" cannot be placed at "${dest}" – a file or folder with that name already exists there.`,
+        conflictMerge:        'Merge (move contents in)',
+        conflictRename:       'Rename and move',
+        conflictSkip:         'Skip',
+        // Context folder
+        settingsContextSection: 'Context folder',
+        settingsContextFolder:  'Context folder path',
+        settingsContextFolderD: 'Folder whose .md files are loaded into every chat session as background context',
+        settingsContextEnabled: 'Load context folder automatically',
+        settingsContextEnabledD:'Reads all .md files from the folder above and adds them to the system prompt',
+        settingsContextMax:     'Max context size (characters)',
+        settingsContextMaxD:    'Hard cap to keep the prompt manageable. Older content is truncated.',
+        settingsContextDefaults:'Create default context files on setup',
+        settingsContextDefaultsD:'When "00 Kontext" is newly created, write starter templates for Biography, Writing Style, Research Guidelines',
+        contextLoadedHeader:    'Persistent user context (from vault folder)',
     },
     de: {
         title:           'Lokales Ollama',
@@ -115,6 +192,83 @@ const I18N = {
         cmdSummarize:    'Aktuelle Notiz zusammenfassen',
         cmdStructure:    'Struktur für aktuelle Notiz vorschlagen',
         cmdContext:      'Aktuelle Notiz als Kontext laden',
+        cmdSave:         'Chat im Vault speichern',
+        cmdSetup:        'Vault-Ordnerstruktur einrichten',
+        cmdOrganize:     'Vorhandene Ordner in Struktur einsortieren',
+        // Save-to-Vault
+        saveBtn:              '💾 Speichern',
+        saveNothing:          'Noch keine Nachrichten zum Speichern vorhanden.',
+        saveModalTitle:       'Chat im Vault speichern',
+        saveModalFolder:      'Ordner',
+        saveModalFolderHint:  'Vorschlag vom Modell · bestehende Ordner im Dropdown',
+        saveModalFilename:    'Dateiname',
+        saveModalFilenameHint:'.md wird automatisch angehängt',
+        saveModalTags:        'Tags (optional, komma-getrennt)',
+        saveModalPreview:     'Vorschau',
+        saveModalOpenAfter:   'Nach dem Speichern Datei öffnen',
+        saveModalCancel:      'Abbrechen',
+        saveModalSave:        'Speichern',
+        saveSuggesting:       'Ordnervorschlag wird erstellt…',
+        savedNotice:          (p) => `Gespeichert: ${p}`,
+        saveFailed:           (m) => `Speichern fehlgeschlagen: ${m}`,
+        saveCalloutTitle:     'KI-generierter Inhalt',
+        saveCalloutBody:      (d, t, m) => `Dieser Chat wurde am ${d} um ${t} Uhr mit \`${m}\` über das Plugin „Lokales Ollama" im Vault abgelegt.`,
+        saveHistoryHeading:   'Verlauf',
+        // Vault Setup
+        settingsSaveSection:  'Speichern in Vault',
+        settingsSaveFallback: 'Fallback-Ordner',
+        settingsSaveFallbackD:'Wird genutzt, wenn kein Ordnervorschlag ermittelt werden kann',
+        settingsSaveTrigger:  'Trigger-Phrasen aktiv',
+        settingsSaveTriggerD: 'Phrasen wie „speicher das" / „leg das ab" öffnen das Speichern-Modal',
+        settingsSaveTags:     'Standard-Tags',
+        settingsSaveTagsD:    'Komma-getrennt, werden immer ans Frontmatter angehängt',
+        settingsSaveOpen:     'Datei nach Speichern öffnen',
+        settingsSaveOpenD:    'Öffnet die neue Notiz direkt im Editor',
+        settingsSetupSection: 'Vault-Ersteinrichtung',
+        settingsSetupD:       'Legt eine PARA-Ordnerstruktur in diesem Vault an. Nur Ordner, keine Inhalte.',
+        settingsSetupBtn:     'Struktur anlegen…',
+        setupModalTitle:      'Vault-Struktur einrichten',
+        setupModalIntro:      'Legt eine PARA-Ordnerstruktur in diesem Vault an. Nur Ordner, keine Inhalte. Existierende Ordner bleiben unverändert.',
+        setupModalTemplate:   'Vorlage',
+        setupModalPara:       'PARA (empfohlen)',
+        setupModalMinimal:    'Minimal (nur Inbox + Archiv)',
+        setupModalCustom:     'Eigene Auswahl',
+        setupModalFolders:    'Ordner, die angelegt werden',
+        setupModalCancel:     'Abbrechen',
+        setupModalCreate:     'Struktur anlegen',
+        setupModalDone:       (c, s) => `${c} Ordner angelegt, ${s} existierten bereits.`,
+        setupModalOrganizeAsk:(n) => `${n} bestehende Top-Level-Ordner passen nicht ins Template. Jetzt einsortieren?`,
+        setupModalOrganizeYes:'Jetzt einsortieren',
+        setupModalOrganizeNo: 'Später',
+        // Organize
+        settingsOrganizeBtn:  'Ordner einsortieren…',
+        settingsOrganizeD:    'Verschiebe oder benenne bestehende Top-Level-Ordner in die PARA-Struktur. Wikilinks werden automatisch aktualisiert.',
+        organizeModalTitle:   'Bestehende Ordner einsortieren',
+        organizeModalIntro:   'Diese Top-Level-Ordner passen nicht ins PARA-Template. Wähle für jeden, was passieren soll. Wikilinks werden automatisch mitgezogen.',
+        organizeModalNone:    'Alle Top-Level-Ordner passen bereits ins Template. Nichts einzusortieren.',
+        organizeActionKeep:   'So lassen',
+        organizeActionMove:   'Verschieben nach',
+        organizeActionRename: 'Umbenennen in',
+        organizeTargetPlaceholder: 'Zielordner',
+        organizeRenamePlaceholder: 'Neuer Name',
+        organizeRun:          'Änderungen ausführen',
+        organizeDone:         (m, r, s, f) => `Fertig: ${m} verschoben, ${r} umbenannt, ${s} übersprungen, ${f} fehlgeschlagen.`,
+        conflictModalTitle:   'Namenskonflikt',
+        conflictModalBody:    (src, dest) => `„${src}" kann nicht nach „${dest}" verschoben werden – dort existiert bereits eine Datei oder ein Ordner mit dem Namen.`,
+        conflictMerge:        'Zusammenführen (Inhalte verschieben)',
+        conflictRename:       'Umbenennen und verschieben',
+        conflictSkip:         'Überspringen',
+        // Kontext-Ordner
+        settingsContextSection: 'Kontext-Ordner',
+        settingsContextFolder:  'Pfad zum Kontext-Ordner',
+        settingsContextFolderD: 'Ordner, dessen .md-Dateien bei jeder Chat-Session als Hintergrundkontext geladen werden',
+        settingsContextEnabled: 'Kontext-Ordner automatisch laden',
+        settingsContextEnabledD:'Liest alle .md-Dateien aus dem obigen Ordner und hängt sie an den System-Prompt',
+        settingsContextMax:     'Maximalgröße (Zeichen)',
+        settingsContextMaxD:    'Harte Obergrenze, damit der Prompt nicht explodiert. Überlange Inhalte werden gekürzt.',
+        settingsContextDefaults:'Standard-Kontextdateien beim Setup anlegen',
+        settingsContextDefaultsD:'Legt beim Anlegen von „00 Kontext" Vorlagen für Biographie, Schreibstil und Recherchevorgaben an',
+        contextLoadedHeader:    'Dauerkontext (aus Vault-Ordner)',
     },
 };
 
@@ -166,7 +320,144 @@ const DEFAULT_SETTINGS = {
     model:        'gemma3:12b',
     language:     'en',
     systemPrompt: DEFAULT_SYSTEM_PROMPT,
+    // Save-to-Vault
+    saveFallbackFolder: '01 Inbox',
+    saveTriggerEnabled: true,
+    saveDefaultTags:    'ollama, ki-generiert',
+    saveOpenAfter:      false,
+    // Kontext-Ordner
+    contextFolder:          '00 Kontext',
+    contextFolderEnabled:   true,
+    contextFolderMaxChars:  8000,
+    contextCreateDefaults:  true,
 };
+
+// PARA-Vorlagen für die Vault-Ersteinrichtung
+const SETUP_TEMPLATES = {
+    para: [
+        '00 Kontext',
+        '01 Inbox',
+        '02 Projekte',
+        '03 Bereiche',
+        '04 Ressourcen',
+        '05 Daily Notes',
+        '06 Archiv',
+        '07 Anhänge',
+    ],
+    minimal: [
+        '01 Inbox',
+        '06 Archiv',
+    ],
+};
+
+// Standard-Kontextdateien, die beim Anlegen von 00 Kontext mitgeschrieben werden.
+// Generische Vorlagen – jeder Nutzer befüllt sie mit eigenem Inhalt.
+const CONTEXT_FILE_TEMPLATES = {
+    'Biographie.md': `---
+title: Biographie
+type: kontext
+---
+
+# Biographie
+
+Beschreibe hier knapp, wer du bist. Die KI nutzt diese Angaben, um Antworten
+auf deine Rolle, dein Fachgebiet und deinen Alltag zuzuschneiden.
+
+## Beruf und Rolle
+
+(Beruf, aktuelle Position, Arbeitgeber, Verantwortungsbereich)
+
+## Fachlicher Hintergrund
+
+(Studium, Promotion, Spezialisierungen, Fachgebiete)
+
+## Projekte und Schwerpunkte
+
+(Was dich gerade beschäftigt, aktive Projekte, langfristige Themen)
+
+## Was die KI über dich wissen sollte
+
+(Besonderheiten, Vorlieben, blinde Flecken, Dinge die bei Antworten
+berücksichtigt werden sollen)
+`,
+    'Schreibstil.md': `---
+title: Schreibstil
+type: kontext
+---
+
+# Schreibstil
+
+Diese Regeln gelten für alle Texte, die die KI für dich schreibt oder
+überarbeitet – egal ob Chatantwort, Entwurf oder Zusammenfassung.
+
+## Grundregeln
+
+- Aktiv statt Passiv
+- Kurze Sätze bevorzugen
+- Keine Füllwörter („bereits", „natürlich", „selbstverständlich")
+- Keine Bindestrich-Sätze als Satzverbinder
+- „KI" statt „AI" im Deutschen
+
+## Ansprache
+
+(Du oder Sie – gegebenenfalls je nach Kontext unterschiedlich)
+
+## Tonalität
+
+(Locker, formell, sachlich, warm – was passt zu dir?)
+
+## Was zu vermeiden ist
+
+- Keine Werbesprache („nahtlos", „bahnbrechend", „atemberaubend")
+- Keine Dialog-Reste („Gerne!", „Ich hoffe, das hilft")
+- Keine schließenden Zusammenfassungs-Absätze
+- Keine Emojis in formellen Texten
+`,
+    'Recherchevorgaben.md': `---
+title: Recherchevorgaben
+type: kontext
+---
+
+# Recherchevorgaben
+
+Diese Regeln gelten für jede Recherche, Faktenaussage und Quellenangabe.
+
+## Keine Halluzination
+
+- Keine Quellen, Zitate oder Fakten erfinden
+- Wenn eine Information nicht sicher belegbar ist: ausdrücklich sagen
+- Bei Unsicherheit nachfragen statt raten
+- Lieber „weiß ich nicht" als eine plausible Erfindung
+
+## Quellenprüfung
+
+- Quellen nennen, wenn vorhanden
+- Zwischen Primär- und Sekundärquelle unterscheiden
+- Alter von Quellen angeben, wenn das die Aussage beeinflusst
+- Bei widersprüchlichen Quellen den Konflikt benennen, nicht glätten
+
+## Nachvollziehbarkeit
+
+- Argumentation zeigen, nicht nur Behauptung
+- Zahlen und Daten mit Zeitraum oder Stichtag versehen
+- Zwischen Fakt, Interpretation und Meinung klar trennen
+
+## Umgang mit Unsicherheit
+
+- Konfidenz offen kommunizieren („sicher belegt" / „plausibel, nicht geprüft" / „Vermutung")
+- Keine Scheinsicherheit durch Formulierungen wie „bekanntermaßen" oder „natürlich"
+`,
+};
+
+// Trigger-Phrasen für den Speichern-Flow (case-insensitive)
+const SAVE_TRIGGER_PATTERNS = [
+    /\bspeicher(e|st)?\s+(das|dies(es)?|den\s+chat|die\s+(antwort|notiz))/i,
+    /\bleg(e|st)?\s+(das|dies(es)?|den\s+chat)\s+.{0,20}(vault|ab)/i,
+    /\bals\s+notiz\s+(ab)?speichern/i,
+    /\bin\s+(den\s+|meinen?\s+)?vault\s+(ab)?speichern/i,
+    /\bsave\s+(this|that|the\s+chat)\s+(to|in)\s+(my\s+)?vault/i,
+    /\bsave\s+(this|that)\s+as\s+(a\s+)?note/i,
+];
 
 // ─── Chat View ───────────────────────────────────────────────────────────────
 
@@ -215,6 +506,9 @@ class OllamaChatView extends ItemView {
             await this.plugin.saveSettings();
             this.render();
         };
+
+        const saveBtn = controls.createEl('button', { text: t.saveBtn, cls: 'euria-save-btn' });
+        saveBtn.onclick = () => this.openSaveModal();
 
         const clearBtn = controls.createEl('button', { text: t.clear, cls: 'euria-clear-btn' });
         clearBtn.onclick = () => {
@@ -282,6 +576,14 @@ class OllamaChatView extends ItemView {
         const send = async () => {
             const text = textarea.value.trim();
             if (!text || this.isLoading) return;
+
+            // Trigger-Phrasen für Speichern erkennen – öffnet Modal statt Prompt an Ollama
+            if (this.plugin.settings.saveTriggerEnabled && this._matchesSaveTrigger(text)) {
+                textarea.value = '';
+                this.openSaveModal();
+                return;
+            }
+
             textarea.value = '';
             await this.sendMessage(text);
         };
@@ -365,7 +667,7 @@ class OllamaChatView extends ItemView {
             };
             this.render();
 
-            const apiMessages = this._buildApiMessages(prompt);
+            const apiMessages = await this._buildApiMessages(prompt);
             // Letzten Dummy-Eintrag aus History entfernen (wird durch API-Call ersetzt)
             apiMessages.pop();
             apiMessages.push({ role: 'user', content: prompt });
@@ -456,7 +758,7 @@ class OllamaChatView extends ItemView {
         const display = displayText || userText;
         this.isLoading = true;
 
-        const apiMessages = this._buildApiMessages(userText);
+        const apiMessages = await this._buildApiMessages(userText);
         this.messages.push({ role: 'user',      content: display,   apiContent: userText });
         this.messages.push({ role: 'assistant', content: '⏳ …' });
         this.render();
@@ -495,8 +797,204 @@ class OllamaChatView extends ItemView {
         this.render();
     }
 
-    _buildApiMessages(newUserText) {
+    // ─── Save to Vault ────────────────────────────────────────────────────────
+
+    _matchesSaveTrigger(text) {
+        return SAVE_TRIGGER_PATTERNS.some(rx => rx.test(text));
+    }
+
+    openSaveModal() {
+        const t = I18N[this.plugin.settings.language] || I18N.en;
+        if (!this.messages.length) {
+            new Notice(t.saveNothing);
+            return;
+        }
+        new SaveToVaultModal(this.app, this.plugin, this, t).open();
+    }
+
+    /**
+     * Fragt das Modell nach einem Ordner + Dateinamen für den aktuellen Chat.
+     * Rückgabe: { folder, filename, tags } oder null bei Fehler.
+     */
+    async suggestSavePath() {
+        const folders = this._listAllFolders();
+        const folderList = folders.length ? folders.join('\n') : '(empty vault)';
+        const chatSnippet = this.messages
+            .slice(-8)
+            .map(m => `${m.role === 'user' ? 'User' : 'Assistant'}: ${(m.apiContent || m.content).slice(0, 500)}`)
+            .join('\n\n');
+
+        const prompt = `You receive a chat history and a list of existing vault folders. Respond ONLY with valid JSON, no prose, no code fences:
+
+{"folder": "path/to/folder", "filename": "Filename without .md", "tags": ["tag1","tag2"]}
+
+Rules:
+- folder MUST be one of the listed folders, OR a new subfolder under a listed one (e.g. "02 Projekte/New Topic")
+- filename: 3-7 words, describes the main topic, German capitalization if the chat is in German
+- tags: 2-4 lowercase tags, hyphenate multi-word tags
+- Do NOT wrap the JSON in markdown or add explanations.
+
+Existing folders:
+${folderList}
+
+Chat:
+${chatSnippet}`;
+
+        try {
+            const response = await requestUrl({
+                url:    `${OLLAMA_BASE_URL}/v1/chat/completions`,
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    model:       this.plugin.settings.model,
+                    messages:    [{ role: 'user', content: prompt }],
+                    max_tokens:  300,
+                    temperature: 0.2,
+                }),
+                throw: false,
+            });
+            if (response.status >= 400 || response.status === 0) return null;
+            const raw = response.json?.choices?.[0]?.message?.content?.trim() || '';
+            const json = this._extractJson(raw);
+            if (!json || typeof json.folder !== 'string' || typeof json.filename !== 'string') return null;
+            return {
+                folder:   this._sanitizeFolder(json.folder),
+                filename: this._sanitizeFilename(json.filename),
+                tags:     Array.isArray(json.tags) ? json.tags.map(x => String(x).toLowerCase()).filter(Boolean) : [],
+            };
+        } catch (_) {
+            return null;
+        }
+    }
+
+    _extractJson(text) {
+        // Entferne Code-Fences falls das Modell doch welche setzt
+        let cleaned = text.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim();
+        const first = cleaned.indexOf('{');
+        const last  = cleaned.lastIndexOf('}');
+        if (first === -1 || last === -1) return null;
+        try { return JSON.parse(cleaned.slice(first, last + 1)); } catch (_) { return null; }
+    }
+
+    _listAllFolders() {
+        const result = [];
+        const walk = (folder) => {
+            for (const child of folder.children || []) {
+                if (child instanceof TFolder) {
+                    result.push(child.path);
+                    walk(child);
+                }
+            }
+        };
+        walk(this.app.vault.getRoot());
+        return result.sort();
+    }
+
+    _sanitizeFolder(path) {
+        return String(path)
+            .replace(/\\/g, '/')
+            .split('/')
+            .map(seg => seg.replace(/[:*?"<>|]/g, '').trim())
+            .filter(seg => seg && seg !== '..' && seg !== '.')
+            .join('/');
+    }
+
+    _sanitizeFilename(name) {
+        return String(name)
+            .replace(/\.md$/i, '')
+            .replace(/[\\/:*?"<>|]/g, '')
+            .trim()
+            .slice(0, 120) || 'Ollama Chat';
+    }
+
+    /**
+     * Baut die endgültige Markdown-Datei aus dem aktuellen Chat.
+     */
+    buildMarkdownContent({ title, tags }) {
+        const t = I18N[this.plugin.settings.language] || I18N.en;
+        const now = new Date();
+        const pad = (n) => String(n).padStart(2, '0');
+        const dateStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+        const timeStr = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
+
+        const allTags = Array.from(new Set([...(tags || [])].map(x => String(x).toLowerCase().trim()).filter(Boolean)));
+
+        const fm = ['---'];
+        fm.push(`title: ${title}`);
+        fm.push(`date: ${dateStr}`);
+        fm.push(`time: ${timeStr}`);
+        if (allTags.length) {
+            fm.push('tags:');
+            for (const tag of allTags) fm.push(`  - ${tag}`);
+        }
+        fm.push('source: Lokales Ollama Plugin');
+        fm.push(`model: ${this.plugin.settings.model}`);
+        if (this.noteContext?.title) fm.push(`context-note: ${this.noteContext.title}`);
+        fm.push('---');
+
+        const lines = [fm.join('\n'), '', `# ${title}`, ''];
+        lines.push(`> [!info] ${t.saveCalloutTitle}`);
+        lines.push(`> ${t.saveCalloutBody(dateStr, timeStr, this.plugin.settings.model)}`);
+        lines.push('', `## ${t.saveHistoryHeading}`, '');
+
+        for (const msg of this.messages) {
+            const heading = msg.role === 'user' ? t.tagYou : t.tagOllama;
+            lines.push(`### ${heading}`, '', msg.content, '');
+        }
+
+        return lines.join('\n').replace(/\n{3,}/g, '\n\n').trim() + '\n';
+    }
+
+    /**
+     * Schreibt die Datei. Legt fehlende Ordner an, hängt Suffix an bei Konflikt.
+     * Rückgabe: finaler Pfad.
+     */
+    async writeMarkdownToVault(folderPath, filename, content) {
+        const cleanFolder = this._sanitizeFolder(folderPath);
+        const cleanName   = this._sanitizeFilename(filename);
+
+        if (cleanFolder) await this._ensureFolder(cleanFolder);
+
+        let finalPath = cleanFolder ? `${cleanFolder}/${cleanName}.md` : `${cleanName}.md`;
+        let counter = 2;
+        while (this.app.vault.getAbstractFileByPath(finalPath)) {
+            finalPath = cleanFolder
+                ? `${cleanFolder}/${cleanName} ${counter}.md`
+                : `${cleanName} ${counter}.md`;
+            counter++;
+            if (counter > 999) throw new Error('Too many filename conflicts');
+        }
+
+        await this.app.vault.create(finalPath, content);
+        return finalPath;
+    }
+
+    async _ensureFolder(path) {
+        if (!path) return;
+        if (this.app.vault.getAbstractFileByPath(path)) return;
+        // Rekursiv Teile anlegen, falls createFolder nicht rekursiv unterstützt wird
+        const parts = path.split('/').filter(Boolean);
+        let current = '';
+        for (const part of parts) {
+            current = current ? `${current}/${part}` : part;
+            if (!this.app.vault.getAbstractFileByPath(current)) {
+                try { await this.app.vault.createFolder(current); } catch (_) { /* existiert evtl. parallel */ }
+            }
+        }
+    }
+
+    async _buildApiMessages(newUserText) {
+        const t = I18N[this.plugin.settings.language] || I18N.en;
         let systemContent = this.plugin.settings.systemPrompt;
+
+        // Dauerkontext aus 00 Kontext (oder konfiguriertem Ordner) laden
+        if (this.plugin.settings.contextFolderEnabled) {
+            const folderContext = await this._loadContextFolder();
+            if (folderContext) {
+                systemContent += `\n\n[${t.contextLoadedHeader}]\n${folderContext}`;
+            }
+        }
+
         if (this.noteContext) {
             const snippet = this.noteContext.content.length > 6000
                 ? this.noteContext.content.substring(0, 6000) + '\n[…gekürzt]'
@@ -510,6 +1008,654 @@ class OllamaChatView extends ItemView {
         }
         msgs.push({ role: 'user', content: newUserText });
         return msgs;
+    }
+
+    /**
+     * Liest alle .md-Dateien aus dem Kontext-Ordner (rekursiv),
+     * sortiert alphabetisch, und baut daraus einen Prompt-Block.
+     * Respektiert das Zeichen-Limit aus den Einstellungen.
+     * Rückgabe: zusammengesetzter String oder null wenn Ordner fehlt / leer.
+     */
+    async _loadContextFolder() {
+        const folderPath = (this.plugin.settings.contextFolder || '').trim();
+        if (!folderPath) return null;
+        const folder = this.app.vault.getAbstractFileByPath(folderPath);
+        if (!folder || !(folder instanceof TFolder)) return null;
+
+        const mdFiles = [];
+        const walk = (f) => {
+            for (const child of f.children || []) {
+                if (child instanceof TFolder) walk(child);
+                else if (child.extension === 'md') mdFiles.push(child);
+            }
+        };
+        walk(folder);
+        if (!mdFiles.length) return null;
+
+        mdFiles.sort((a, b) => a.path.localeCompare(b.path));
+
+        const maxChars = Math.max(1000, Number(this.plugin.settings.contextFolderMaxChars) || 8000);
+        const parts = [];
+        let used = 0;
+        for (const file of mdFiles) {
+            try {
+                const raw = await this.app.vault.cachedRead(file);
+                // Frontmatter entfernen, nur Textinhalt reinnehmen
+                const body = raw.replace(/^---\n[\s\S]*?\n---\n?/, '').trim();
+                if (!body) continue;
+                const header = `## ${file.basename}`;
+                const block = `${header}\n${body}`;
+                if (used + block.length > maxChars) {
+                    const remaining = maxChars - used - header.length - 20;
+                    if (remaining > 200) {
+                        parts.push(`${header}\n${body.slice(0, remaining)}\n[…gekürzt]`);
+                    }
+                    break;
+                }
+                parts.push(block);
+                used += block.length + 2;
+            } catch (_) { /* Datei nicht lesbar – überspringen */ }
+        }
+        return parts.join('\n\n');
+    }
+}
+
+// ─── Save-to-Vault Modal ──────────────────────────────────────────────────────
+
+class SaveToVaultModal extends Modal {
+    constructor(app, plugin, view, t) {
+        super(app);
+        this.plugin = plugin;
+        this.view   = view;
+        this.t      = t;
+        this.folder   = plugin.settings.saveFallbackFolder || '01 Inbox';
+        this.filename = 'Ollama Chat';
+        this.tags     = plugin.settings.saveDefaultTags || '';
+        this.openAfter = !!plugin.settings.saveOpenAfter;
+    }
+
+    async onOpen() {
+        const t = this.t;
+        const { contentEl, titleEl } = this;
+        titleEl.setText(`🦙 ${t.saveModalTitle}`);
+        contentEl.empty();
+        contentEl.addClass('euria-save-modal');
+
+        // Loading-Hinweis während Modell-Vorschlag läuft
+        const loading = contentEl.createDiv({ cls: 'setting-item-description' });
+        loading.setText(t.saveSuggesting);
+        loading.style.marginBottom = '12px';
+
+        // Default: aktuellster Timestamp als Fallback-Dateiname
+        const now = new Date();
+        const pad = (n) => String(n).padStart(2, '0');
+        this.filename = `Ollama Chat ${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}${pad(now.getMinutes())}`;
+
+        // Modell-Vorschlag parallel holen
+        const suggestion = await this.view.suggestSavePath();
+        loading.remove();
+
+        if (suggestion) {
+            if (suggestion.folder)   this.folder   = suggestion.folder;
+            if (suggestion.filename) this.filename = suggestion.filename;
+            if (suggestion.tags?.length) {
+                const defaults = (this.plugin.settings.saveDefaultTags || '').split(',').map(x => x.trim()).filter(Boolean);
+                const merged = Array.from(new Set([...defaults, ...suggestion.tags]));
+                this.tags = merged.join(', ');
+            }
+        }
+
+        this._renderForm(contentEl);
+    }
+
+    _renderForm(contentEl) {
+        const t = this.t;
+
+        // Ordner
+        new Setting(contentEl)
+            .setName(t.saveModalFolder)
+            .setDesc(t.saveModalFolderHint)
+            .addText(txt => {
+                txt.setValue(this.folder);
+                txt.inputEl.style.width = '100%';
+                txt.inputEl.setAttribute('list', 'euria-folder-list');
+                txt.onChange(v => { this.folder = v; this._updatePreview(); });
+            });
+
+        // Datalist mit allen Vault-Ordnern für Autocomplete
+        const datalist = contentEl.createEl('datalist', { attr: { id: 'euria-folder-list' } });
+        for (const f of this.view._listAllFolders()) {
+            datalist.createEl('option', { attr: { value: f } });
+        }
+
+        // Dateiname
+        new Setting(contentEl)
+            .setName(t.saveModalFilename)
+            .setDesc(t.saveModalFilenameHint)
+            .addText(txt => {
+                txt.setValue(this.filename);
+                txt.inputEl.style.width = '100%';
+                txt.onChange(v => { this.filename = v; this._updatePreview(); });
+            });
+
+        // Tags
+        new Setting(contentEl)
+            .setName(t.saveModalTags)
+            .addText(txt => {
+                txt.setValue(this.tags);
+                txt.inputEl.style.width = '100%';
+                txt.onChange(v => { this.tags = v; this._updatePreview(); });
+            });
+
+        // Vorschau
+        contentEl.createEl('h4', { text: t.saveModalPreview });
+        this.previewEl = contentEl.createEl('pre', { cls: 'euria-save-preview' });
+        this.previewEl.style.maxHeight    = '220px';
+        this.previewEl.style.overflow     = 'auto';
+        this.previewEl.style.background   = 'var(--background-secondary)';
+        this.previewEl.style.padding      = '8px';
+        this.previewEl.style.borderRadius = '6px';
+        this.previewEl.style.fontSize     = '12px';
+        this.previewEl.style.whiteSpace   = 'pre-wrap';
+        this._updatePreview();
+
+        // Open-after-Save Toggle
+        new Setting(contentEl)
+            .setName(t.saveModalOpenAfter)
+            .addToggle(tg => tg
+                .setValue(this.openAfter)
+                .onChange(v => { this.openAfter = v; })
+            );
+
+        // Buttons
+        const buttonRow = contentEl.createDiv({ cls: 'modal-button-container' });
+        buttonRow.style.display = 'flex';
+        buttonRow.style.justifyContent = 'flex-end';
+        buttonRow.style.gap = '8px';
+        buttonRow.style.marginTop = '16px';
+
+        const cancelBtn = buttonRow.createEl('button', { text: t.saveModalCancel });
+        cancelBtn.onclick = () => this.close();
+
+        const saveBtn = buttonRow.createEl('button', { text: t.saveModalSave, cls: 'mod-cta' });
+        saveBtn.onclick = () => this._handleSave();
+    }
+
+    _tagList() {
+        return (this.tags || '').split(',').map(x => x.trim()).filter(Boolean);
+    }
+
+    _updatePreview() {
+        if (!this.previewEl) return;
+        const content = this.view.buildMarkdownContent({
+            title: this.view._sanitizeFilename(this.filename || 'Ollama Chat'),
+            tags:  this._tagList(),
+        });
+        this.previewEl.setText(content.slice(0, 1200) + (content.length > 1200 ? '\n…' : ''));
+    }
+
+    async _handleSave() {
+        const t = this.t;
+        try {
+            const title = this.view._sanitizeFilename(this.filename || 'Ollama Chat');
+            const content = this.view.buildMarkdownContent({ title, tags: this._tagList() });
+            const folderPath = this.folder?.trim() || this.plugin.settings.saveFallbackFolder || '01 Inbox';
+            const finalPath = await this.view.writeMarkdownToVault(folderPath, title, content);
+            new Notice(t.savedNotice(finalPath));
+            this.close();
+            if (this.openAfter) {
+                const file = this.app.vault.getAbstractFileByPath(finalPath);
+                if (file) await this.app.workspace.getLeaf(true).openFile(file);
+            }
+        } catch (err) {
+            new Notice(t.saveFailed(err.message || String(err)));
+        }
+    }
+}
+
+// ─── Vault Setup Modal ────────────────────────────────────────────────────────
+
+class VaultSetupModal extends Modal {
+    constructor(app, plugin, t) {
+        super(app);
+        this.plugin = plugin;
+        this.t      = t;
+        this.template = 'para';
+        this.folders  = [...SETUP_TEMPLATES.para];
+        this.selectedFolders = new Set(this.folders);
+    }
+
+    onOpen() {
+        const t = this.t;
+        const { contentEl, titleEl } = this;
+        titleEl.setText(`🦙 ${t.setupModalTitle}`);
+        contentEl.empty();
+
+        const intro = contentEl.createEl('p', { text: t.setupModalIntro });
+        intro.style.marginBottom = '12px';
+
+        // Vorlage
+        new Setting(contentEl)
+            .setName(t.setupModalTemplate)
+            .addDropdown(d => d
+                .addOption('para',    t.setupModalPara)
+                .addOption('minimal', t.setupModalMinimal)
+                .setValue(this.template)
+                .onChange(v => {
+                    this.template = v;
+                    this.folders   = [...(SETUP_TEMPLATES[v] || SETUP_TEMPLATES.para)];
+                    this.selectedFolders = new Set(this.folders);
+                    this._renderFolderList();
+                })
+            );
+
+        contentEl.createEl('h4', { text: t.setupModalFolders });
+        this.listEl = contentEl.createDiv({ cls: 'euria-setup-folders' });
+        this._renderFolderList();
+
+        const buttonRow = contentEl.createDiv({ cls: 'modal-button-container' });
+        buttonRow.style.display = 'flex';
+        buttonRow.style.justifyContent = 'flex-end';
+        buttonRow.style.gap = '8px';
+        buttonRow.style.marginTop = '16px';
+
+        const cancelBtn = buttonRow.createEl('button', { text: t.setupModalCancel });
+        cancelBtn.onclick = () => this.close();
+
+        const createBtn = buttonRow.createEl('button', { text: t.setupModalCreate, cls: 'mod-cta' });
+        createBtn.onclick = () => this._handleCreate();
+    }
+
+    _renderFolderList() {
+        this.listEl.empty();
+        this.listEl.style.cssText = 'display:flex;flex-direction:column;gap:4px;max-height:320px;overflow-y:auto;padding:8px;border:1px solid var(--background-modifier-border);border-radius:6px;margin-bottom:12px;';
+
+        if (!this.folders || !this.folders.length) {
+            this.listEl.createEl('div', { text: '(keine Ordner im Template)' });
+            return;
+        }
+
+        for (const folder of this.folders) {
+            try {
+                const exists = !!this.app.vault.getAbstractFileByPath(folder);
+                if (exists) this.selectedFolders.delete(folder);
+
+                const label = this.listEl.createEl('label');
+                label.style.cssText = 'display:flex;align-items:center;gap:8px;cursor:pointer;padding:4px 2px;';
+
+                const cb = label.createEl('input', { attr: { type: 'checkbox' } });
+                cb.checked  = this.selectedFolders.has(folder) && !exists;
+                cb.disabled = exists;
+                cb.addEventListener('change', () => {
+                    if (cb.checked) this.selectedFolders.add(folder);
+                    else this.selectedFolders.delete(folder);
+                });
+
+                const nameSpan = label.createEl('span');
+                nameSpan.textContent = folder;
+                nameSpan.style.flex = '1';
+                if (exists) nameSpan.style.opacity = '0.5';
+
+                if (exists) {
+                    const hint = label.createEl('span', { cls: 'setting-item-description' });
+                    hint.textContent = '(existiert)';
+                    hint.style.fontSize = '11px';
+                }
+            } catch (err) {
+                const errEl = this.listEl.createEl('div');
+                errEl.textContent = `Fehler bei "${folder}": ${err.message}`;
+                errEl.style.color = 'var(--text-error)';
+            }
+        }
+    }
+
+    async _handleCreate() {
+        let created = 0, skipped = 0;
+        const contextFolderPath = (this.plugin.settings.contextFolder || '00 Kontext').trim();
+        let contextFolderNewlyCreated = false;
+
+        for (const folder of this.selectedFolders) {
+            try {
+                if (this.app.vault.getAbstractFileByPath(folder)) { skipped++; continue; }
+                await this.app.vault.createFolder(folder);
+                created++;
+                if (folder === contextFolderPath) contextFolderNewlyCreated = true;
+            } catch (_) { skipped++; }
+        }
+
+        // Default-Kontextdateien anlegen, wenn 00 Kontext frisch entstanden ist
+        if (contextFolderNewlyCreated && this.plugin.settings.contextCreateDefaults) {
+            for (const [name, content] of Object.entries(CONTEXT_FILE_TEMPLATES)) {
+                const path = `${contextFolderPath}/${name}`;
+                if (this.app.vault.getAbstractFileByPath(path)) continue;
+                try { await this.app.vault.create(path, content); } catch (_) {}
+            }
+        }
+
+        new Notice(this.t.setupModalDone(created, skipped));
+        this.close();
+
+        // Nach dem Anlegen: Fremd-Ordner-Check
+        const templateFolders = SETUP_TEMPLATES[this.template] || SETUP_TEMPLATES.para;
+        const foreign = OrganizeFoldersModal.findForeignTopFolders(this.app, templateFolders);
+        if (foreign.length) {
+            // kleine Nachfrage via Modal
+            setTimeout(() => {
+                new OrganizeAskModal(this.app, this.plugin, this.t, this.template, foreign.length).open();
+            }, 300);
+        }
+    }
+}
+
+// ─── Organize-Ask Modal (kleine Zwischenfrage) ────────────────────────────────
+
+class OrganizeAskModal extends Modal {
+    constructor(app, plugin, t, templateName, foreignCount) {
+        super(app);
+        this.plugin = plugin;
+        this.t = t;
+        this.templateName = templateName;
+        this.foreignCount = foreignCount;
+    }
+
+    onOpen() {
+        const t = this.t;
+        const { contentEl, titleEl } = this;
+        titleEl.setText('🦙 ' + t.setupModalTitle);
+        contentEl.empty();
+        contentEl.createEl('p', { text: t.setupModalOrganizeAsk(this.foreignCount) });
+
+        const row = contentEl.createDiv({ cls: 'modal-button-container' });
+        row.style.cssText = 'display:flex;justify-content:flex-end;gap:8px;margin-top:16px;';
+
+        const laterBtn = row.createEl('button', { text: t.setupModalOrganizeNo });
+        laterBtn.onclick = () => this.close();
+
+        const nowBtn = row.createEl('button', { text: t.setupModalOrganizeYes, cls: 'mod-cta' });
+        nowBtn.onclick = () => {
+            this.close();
+            new OrganizeFoldersModal(this.app, this.plugin, this.t, this.templateName).open();
+        };
+    }
+}
+
+// ─── Organize Folders Modal ───────────────────────────────────────────────────
+
+/**
+ * Erlaubt das Zuordnen bestehender Top-Level-Ordner zu Zielordnern des Templates
+ * oder Umbenennen. Verschiebungen laufen über fileManager.renameFile,
+ * damit alle Wikilinks aktualisiert werden.
+ */
+class OrganizeFoldersModal extends Modal {
+    constructor(app, plugin, t, templateName = 'para') {
+        super(app);
+        this.plugin = plugin;
+        this.t      = t;
+        this.templateName = templateName;
+        this.template = SETUP_TEMPLATES[templateName] || SETUP_TEMPLATES.para;
+        this.rows = []; // { folder, mode: 'keep'|'move'|'rename', target, newName }
+    }
+
+    static findForeignTopFolders(app, templateFolders) {
+        const templateSet = new Set(templateFolders);
+        const foreign = [];
+        for (const child of app.vault.getRoot().children || []) {
+            if (!(child instanceof TFolder)) continue;
+            if (child.name.startsWith('.')) continue;
+            if (templateSet.has(child.path)) continue;
+            foreign.push(child);
+        }
+        return foreign;
+    }
+
+    onOpen() {
+        const t = this.t;
+        const { contentEl, titleEl } = this;
+        titleEl.setText(`🦙 ${t.organizeModalTitle}`);
+        contentEl.empty();
+
+        const foreign = OrganizeFoldersModal.findForeignTopFolders(this.app, this.template);
+        if (!foreign.length) {
+            contentEl.createEl('p', { text: t.organizeModalNone });
+            const row = contentEl.createDiv({ cls: 'modal-button-container' });
+            row.style.cssText = 'display:flex;justify-content:flex-end;margin-top:12px;';
+            const closeBtn = row.createEl('button', { text: t.setupModalCancel });
+            closeBtn.onclick = () => this.close();
+            return;
+        }
+
+        contentEl.createEl('p', { text: t.organizeModalIntro }).style.marginBottom = '12px';
+
+        this.rows = foreign.map(folder => ({ folder, mode: 'keep', target: this.template[0] || '', newName: folder.name }));
+
+        for (const row of this.rows) {
+            this._renderRow(contentEl, row);
+        }
+
+        const buttonRow = contentEl.createDiv({ cls: 'modal-button-container' });
+        buttonRow.style.cssText = 'display:flex;justify-content:flex-end;gap:8px;margin-top:16px;';
+
+        const cancelBtn = buttonRow.createEl('button', { text: t.setupModalCancel });
+        cancelBtn.onclick = () => this.close();
+
+        const runBtn = buttonRow.createEl('button', { text: t.organizeRun, cls: 'mod-cta' });
+        runBtn.onclick = () => this._handleRun();
+    }
+
+    _renderRow(contentEl, row) {
+        const t = this.t;
+        const wrapper = contentEl.createDiv();
+        wrapper.style.cssText = 'padding:10px 0;border-bottom:1px solid var(--background-modifier-border);';
+
+        const title = wrapper.createEl('div', { text: row.folder.path });
+        title.style.cssText = 'font-weight:600;margin-bottom:6px;';
+
+        const groupName = `euria-org-${Math.random().toString(36).slice(2, 8)}`;
+
+        // Keep
+        const keepLabel = wrapper.createEl('label');
+        keepLabel.style.cssText = 'display:flex;align-items:center;gap:6px;margin:3px 0;';
+        const keepRadio = keepLabel.createEl('input', { attr: { type: 'radio', name: groupName } });
+        keepRadio.checked = true;
+        keepLabel.createEl('span', { text: t.organizeActionKeep });
+        keepRadio.onchange = () => { if (keepRadio.checked) row.mode = 'keep'; };
+
+        // Move
+        const moveLabel = wrapper.createEl('label');
+        moveLabel.style.cssText = 'display:flex;align-items:center;gap:6px;margin:3px 0;';
+        const moveRadio = moveLabel.createEl('input', { attr: { type: 'radio', name: groupName } });
+        moveLabel.createEl('span', { text: t.organizeActionMove });
+        const moveSelect = moveLabel.createEl('select');
+        for (const target of this.template) {
+            if (target === row.folder.path) continue;
+            moveSelect.createEl('option', { text: target, value: target });
+        }
+        // auch alle sonstigen bereits bestehenden Ordner als Ziel anbieten
+        const allFolders = this._listAllFolders().filter(p => !this.template.includes(p) && p !== row.folder.path);
+        if (allFolders.length) {
+            const sep = moveSelect.createEl('option', { text: '──────────', value: '' });
+            sep.disabled = true;
+            for (const p of allFolders) moveSelect.createEl('option', { text: p, value: p });
+        }
+        moveSelect.value = this.template[0] || '';
+        row.target = moveSelect.value;
+        moveSelect.onchange = () => { row.target = moveSelect.value; moveRadio.checked = true; row.mode = 'move'; };
+        moveRadio.onchange = () => { if (moveRadio.checked) row.mode = 'move'; };
+
+        // Rename
+        const renameLabel = wrapper.createEl('label');
+        renameLabel.style.cssText = 'display:flex;align-items:center;gap:6px;margin:3px 0;';
+        const renameRadio = renameLabel.createEl('input', { attr: { type: 'radio', name: groupName } });
+        renameLabel.createEl('span', { text: t.organizeActionRename });
+        const renameInput = renameLabel.createEl('input', { attr: { type: 'text', placeholder: t.organizeRenamePlaceholder } });
+        renameInput.value = row.folder.name;
+        renameInput.oninput = () => { row.newName = renameInput.value; renameRadio.checked = true; row.mode = 'rename'; };
+        renameRadio.onchange = () => { if (renameRadio.checked) row.mode = 'rename'; };
+    }
+
+    _listAllFolders() {
+        const result = [];
+        const walk = (folder) => {
+            for (const child of folder.children || []) {
+                if (child instanceof TFolder) { result.push(child.path); walk(child); }
+            }
+        };
+        walk(this.app.vault.getRoot());
+        return result.sort();
+    }
+
+    async _handleRun() {
+        let moved = 0, renamed = 0, skipped = 0, failed = 0;
+
+        for (const row of this.rows) {
+            if (row.mode === 'keep') { skipped++; continue; }
+
+            // Zielpfad berechnen
+            let destPath;
+            if (row.mode === 'move') {
+                if (!row.target) { skipped++; continue; }
+                destPath = `${row.target}/${row.folder.name}`;
+            } else { // rename
+                const newName = (row.newName || '').trim();
+                if (!newName || newName === row.folder.name) { skipped++; continue; }
+                destPath = newName;
+            }
+
+            // Ordner noch im Vault vorhanden?
+            if (!this.app.vault.getAbstractFileByPath(row.folder.path)) { failed++; continue; }
+
+            // Zielordner-Elternteil anlegen falls fehlt
+            const parent = destPath.split('/').slice(0, -1).join('/');
+            if (parent && !this.app.vault.getAbstractFileByPath(parent)) {
+                try { await this._ensureFolder(parent); } catch (_) { failed++; continue; }
+            }
+
+            // Konflikt?
+            if (this.app.vault.getAbstractFileByPath(destPath)) {
+                const resolution = await new Promise((resolve) => {
+                    new ConflictResolutionModal(this.app, this.t, row.folder.path, destPath, resolve).open();
+                });
+                if (resolution.action === 'skip') { skipped++; continue; }
+                if (resolution.action === 'rename') {
+                    const alt = (resolution.newName || '').trim();
+                    if (!alt) { skipped++; continue; }
+                    const altParent = destPath.split('/').slice(0, -1).join('/');
+                    destPath = altParent ? `${altParent}/${alt}` : alt;
+                    if (this.app.vault.getAbstractFileByPath(destPath)) { failed++; continue; }
+                    try {
+                        await this.app.fileManager.renameFile(row.folder, destPath);
+                        row.mode === 'move' ? moved++ : renamed++;
+                    } catch (_) { failed++; }
+                    continue;
+                }
+                if (resolution.action === 'merge') {
+                    try {
+                        await this._mergeFolder(row.folder, destPath);
+                        moved++;
+                    } catch (_) { failed++; }
+                    continue;
+                }
+            }
+
+            // Normaler Fall – rename/move
+            try {
+                await this.app.fileManager.renameFile(row.folder, destPath);
+                row.mode === 'move' ? moved++ : renamed++;
+            } catch (_) { failed++; }
+        }
+
+        new Notice(this.t.organizeDone(moved, renamed, skipped, failed));
+        this.close();
+    }
+
+    async _mergeFolder(srcFolder, destPath) {
+        // Alle direkten Kinder einzeln in Zielordner verschieben
+        const children = [...(srcFolder.children || [])];
+        for (const child of children) {
+            const childDest = `${destPath}/${child.name}`;
+            if (this.app.vault.getAbstractFileByPath(childDest)) {
+                // Konflikt auf Kindebene: Suffix anhängen
+                let i = 2;
+                let alt = childDest;
+                const dot = child instanceof TFolder ? -1 : alt.lastIndexOf('.');
+                while (this.app.vault.getAbstractFileByPath(alt)) {
+                    if (dot === -1) alt = `${childDest} ${i}`;
+                    else alt = `${childDest.slice(0, dot)} ${i}${childDest.slice(dot)}`;
+                    i++;
+                    if (i > 999) throw new Error('merge conflict overflow');
+                }
+                await this.app.fileManager.renameFile(child, alt);
+            } else {
+                await this.app.fileManager.renameFile(child, childDest);
+            }
+        }
+        // Leeren Quellordner löschen
+        const refreshed = this.app.vault.getAbstractFileByPath(srcFolder.path);
+        if (refreshed && refreshed.children && refreshed.children.length === 0) {
+            await this.app.vault.delete(refreshed);
+        }
+    }
+
+    async _ensureFolder(path) {
+        const parts = path.split('/').filter(Boolean);
+        let current = '';
+        for (const part of parts) {
+            current = current ? `${current}/${part}` : part;
+            if (!this.app.vault.getAbstractFileByPath(current)) {
+                try { await this.app.vault.createFolder(current); } catch (_) {}
+            }
+        }
+    }
+}
+
+// ─── Conflict Resolution Modal ────────────────────────────────────────────────
+
+class ConflictResolutionModal extends Modal {
+    constructor(app, t, srcPath, destPath, resolve) {
+        super(app);
+        this.t = t;
+        this.srcPath = srcPath;
+        this.destPath = destPath;
+        this.resolve = resolve;
+        this.resolved = false;
+    }
+
+    onOpen() {
+        const t = this.t;
+        const { contentEl, titleEl } = this;
+        titleEl.setText(`⚠ ${t.conflictModalTitle}`);
+        contentEl.empty();
+        contentEl.createEl('p', { text: t.conflictModalBody(this.srcPath, this.destPath) });
+
+        const btnRow = contentEl.createDiv({ cls: 'modal-button-container' });
+        btnRow.style.cssText = 'display:flex;flex-direction:column;gap:8px;margin-top:12px;';
+
+        const mergeBtn = btnRow.createEl('button', { text: t.conflictMerge });
+        mergeBtn.onclick = () => this._finish({ action: 'merge' });
+
+        // Rename-Zeile
+        const renameWrap = btnRow.createDiv();
+        renameWrap.style.cssText = 'display:flex;gap:6px;align-items:center;';
+        const renameInput = renameWrap.createEl('input', { attr: { type: 'text', placeholder: t.organizeRenamePlaceholder } });
+        renameInput.style.flex = '1';
+        const srcName = this.srcPath.split('/').pop();
+        renameInput.value = `${srcName}-2`;
+        const renameBtn = renameWrap.createEl('button', { text: t.conflictRename });
+        renameBtn.onclick = () => this._finish({ action: 'rename', newName: renameInput.value });
+
+        const skipBtn = btnRow.createEl('button', { text: t.conflictSkip });
+        skipBtn.onclick = () => this._finish({ action: 'skip' });
+    }
+
+    _finish(result) {
+        if (this.resolved) return;
+        this.resolved = true;
+        this.resolve(result);
+        this.close();
+    }
+
+    onClose() {
+        if (!this.resolved) { this.resolved = true; this.resolve({ action: 'skip' }); }
     }
 }
 
@@ -636,6 +1782,121 @@ class OllamaSettingTab extends PluginSettingTab {
                     if (promptTextarea) promptTextarea.setValue(DEFAULT_SYSTEM_PROMPT);
                 })
             );
+
+        // ─── Save-to-Vault ───────────────────────────────────────────────────
+        containerEl.createEl('h3', { text: t.settingsSaveSection });
+
+        new Setting(containerEl)
+            .setName(t.settingsSaveFallback)
+            .setDesc(t.settingsSaveFallbackD)
+            .addText(txt => txt
+                .setValue(this.plugin.settings.saveFallbackFolder)
+                .onChange(async v => {
+                    this.plugin.settings.saveFallbackFolder = v.trim() || '01 Inbox';
+                    await this.plugin.saveSettings();
+                })
+            );
+
+        new Setting(containerEl)
+            .setName(t.settingsSaveTrigger)
+            .setDesc(t.settingsSaveTriggerD)
+            .addToggle(tg => tg
+                .setValue(this.plugin.settings.saveTriggerEnabled)
+                .onChange(async v => {
+                    this.plugin.settings.saveTriggerEnabled = v;
+                    await this.plugin.saveSettings();
+                })
+            );
+
+        new Setting(containerEl)
+            .setName(t.settingsSaveTags)
+            .setDesc(t.settingsSaveTagsD)
+            .addText(txt => txt
+                .setValue(this.plugin.settings.saveDefaultTags)
+                .onChange(async v => {
+                    this.plugin.settings.saveDefaultTags = v;
+                    await this.plugin.saveSettings();
+                })
+            );
+
+        new Setting(containerEl)
+            .setName(t.settingsSaveOpen)
+            .setDesc(t.settingsSaveOpenD)
+            .addToggle(tg => tg
+                .setValue(this.plugin.settings.saveOpenAfter)
+                .onChange(async v => {
+                    this.plugin.settings.saveOpenAfter = v;
+                    await this.plugin.saveSettings();
+                })
+            );
+
+        // ─── Vault-Ersteinrichtung ───────────────────────────────────────────
+        containerEl.createEl('h3', { text: t.settingsSetupSection });
+
+        new Setting(containerEl)
+            .setDesc(t.settingsSetupD)
+            .addButton(btn => btn
+                .setButtonText(t.settingsSetupBtn)
+                .setCta()
+                .onClick(() => new VaultSetupModal(this.app, this.plugin, t).open())
+            );
+
+        new Setting(containerEl)
+            .setDesc(t.settingsOrganizeD)
+            .addButton(btn => btn
+                .setButtonText(t.settingsOrganizeBtn)
+                .onClick(() => new OrganizeFoldersModal(this.app, this.plugin, t, 'para').open())
+            );
+
+        // ─── Kontext-Ordner ─────────────────────────────────────────────────
+        containerEl.createEl('h3', { text: t.settingsContextSection });
+
+        new Setting(containerEl)
+            .setName(t.settingsContextFolder)
+            .setDesc(t.settingsContextFolderD)
+            .addText(txt => txt
+                .setValue(this.plugin.settings.contextFolder)
+                .onChange(async v => {
+                    this.plugin.settings.contextFolder = v.trim();
+                    await this.plugin.saveSettings();
+                })
+            );
+
+        new Setting(containerEl)
+            .setName(t.settingsContextEnabled)
+            .setDesc(t.settingsContextEnabledD)
+            .addToggle(tg => tg
+                .setValue(this.plugin.settings.contextFolderEnabled)
+                .onChange(async v => {
+                    this.plugin.settings.contextFolderEnabled = v;
+                    await this.plugin.saveSettings();
+                })
+            );
+
+        new Setting(containerEl)
+            .setName(t.settingsContextMax)
+            .setDesc(t.settingsContextMaxD)
+            .addText(txt => txt
+                .setValue(String(this.plugin.settings.contextFolderMaxChars))
+                .onChange(async v => {
+                    const n = parseInt(v, 10);
+                    if (!isNaN(n) && n >= 1000) {
+                        this.plugin.settings.contextFolderMaxChars = n;
+                        await this.plugin.saveSettings();
+                    }
+                })
+            );
+
+        new Setting(containerEl)
+            .setName(t.settingsContextDefaults)
+            .setDesc(t.settingsContextDefaultsD)
+            .addToggle(tg => tg
+                .setValue(this.plugin.settings.contextCreateDefaults)
+                .onChange(async v => {
+                    this.plugin.settings.contextCreateDefaults = v;
+                    await this.plugin.saveSettings();
+                })
+            );
     }
 }
 
@@ -697,6 +1958,28 @@ class LocalOllamaPlugin extends Plugin {
             },
         });
 
+        this.addCommand({
+            id:       'ollama-save-chat',
+            name:     t.cmdSave,
+            callback: async () => {
+                await this.activateView();
+                const leaf = this.app.workspace.getLeavesOfType(OLLAMA_VIEW_TYPE)[0];
+                if (leaf?.view) leaf.view.openSaveModal();
+            },
+        });
+
+        this.addCommand({
+            id:       'ollama-vault-setup',
+            name:     t.cmdSetup,
+            callback: () => new VaultSetupModal(this.app, this, I18N[this.settings.language] || I18N.en).open(),
+        });
+
+        this.addCommand({
+            id:       'ollama-organize-folders',
+            name:     t.cmdOrganize,
+            callback: () => new OrganizeFoldersModal(this.app, this, I18N[this.settings.language] || I18N.en, 'para').open(),
+        });
+
         this.addSettingTab(new OllamaSettingTab(this.app, this));
     }
 
@@ -715,11 +1998,21 @@ class LocalOllamaPlugin extends Plugin {
     async loadSettings() {
         // Migriere alte Einstellungen: apiToken, productId, baseUrl entfernen
         const saved = await this.loadData() || {};
-        const { model, systemPrompt, language } = saved;
+        const { model, systemPrompt, language,
+                saveFallbackFolder, saveTriggerEnabled, saveDefaultTags, saveOpenAfter,
+                contextFolder, contextFolderEnabled, contextFolderMaxChars, contextCreateDefaults } = saved;
         this.settings = Object.assign({}, DEFAULT_SETTINGS, {
             ...(model        && { model }),
             ...(systemPrompt && { systemPrompt }),
             ...(language     && { language }),
+            ...(saveFallbackFolder   && { saveFallbackFolder }),
+            ...(saveTriggerEnabled !== undefined && { saveTriggerEnabled }),
+            ...(saveDefaultTags !== undefined    && { saveDefaultTags }),
+            ...(saveOpenAfter !== undefined      && { saveOpenAfter }),
+            ...(contextFolder !== undefined         && { contextFolder }),
+            ...(contextFolderEnabled !== undefined  && { contextFolderEnabled }),
+            ...(contextFolderMaxChars !== undefined && { contextFolderMaxChars }),
+            ...(contextCreateDefaults !== undefined && { contextCreateDefaults }),
         });
     }
 
