@@ -68,7 +68,28 @@ const I18N = {
         cmdSetup:        'Set up vault folder structure',
         cmdOrganize:     'Organize existing folders into structure',
         // Save-to-Vault
-        saveBtn:              '💾 Save',
+        saveBtn:              '💾 Chat log',
+        dailyBtn:             '📅 Daily note',
+        cmdDaily:             'Add chat as entry to today\'s daily note',
+        dailyNothing:         'No messages to log yet.',
+        dailyGenerating:      'Generating daily note entry…',
+        dailyModalTitle:      'Add to daily note',
+        dailyModalTarget:     'Target file',
+        dailyModalMode:       'Mode',
+        dailyModalAppend:     'Append to existing file',
+        dailyModalCreate:     'Create new (only if missing)',
+        dailyModalEntry:      'Entry (editable)',
+        dailyModalCancel:     'Cancel',
+        dailyModalSave:       'Add entry',
+        dailyAppended:        (p) => `Appended to ${p}`,
+        dailyCreated:         (p) => `Created ${p}`,
+        dailyFailed:          (m) => `Daily note failed: ${m}`,
+        dailyPromptInstruction: 'Write a concise daily note entry about the following conversation. Start with a level-2 heading. Maximum two short paragraphs. Active voice, no filler, no closing summary. German if the chat is German, English otherwise.',
+        settingsDailySection: 'Daily note',
+        settingsDailyPattern: 'Path pattern',
+        settingsDailyPatternD:'Use {YYYY}, {MM}, {DD} as placeholders. Default: 05 Daily Notes/{YYYY}-{MM}/{YYYY}-{MM}-{DD}.md',
+        settingsDailyAppend:  'Append by default',
+        settingsDailyAppendD: 'When the daily note exists, append instead of asking',
         saveNothing:          'No messages to save yet.',
         saveModalTitle:       'Save chat to vault',
         saveModalFolder:      'Folder',
@@ -196,7 +217,28 @@ const I18N = {
         cmdSetup:        'Vault-Ordnerstruktur einrichten',
         cmdOrganize:     'Vorhandene Ordner in Struktur einsortieren',
         // Save-to-Vault
-        saveBtn:              '💾 Speichern',
+        saveBtn:              '💾 Chatverlauf',
+        dailyBtn:             '📅 Daily Note',
+        cmdDaily:             'Chat an heutige Daily Note anhängen',
+        dailyNothing:         'Noch keine Nachrichten zum Festhalten.',
+        dailyGenerating:      'Daily-Note-Eintrag wird formuliert…',
+        dailyModalTitle:      'In Daily Note eintragen',
+        dailyModalTarget:     'Zieldatei',
+        dailyModalMode:       'Modus',
+        dailyModalAppend:     'An existierende Datei anhängen',
+        dailyModalCreate:     'Neu anlegen (nur wenn nicht vorhanden)',
+        dailyModalEntry:      'Eintrag (editierbar)',
+        dailyModalCancel:     'Abbrechen',
+        dailyModalSave:       'Eintrag anfügen',
+        dailyAppended:        (p) => `Angefügt an ${p}`,
+        dailyCreated:         (p) => `Angelegt: ${p}`,
+        dailyFailed:          (m) => `Daily Note fehlgeschlagen: ${m}`,
+        dailyPromptInstruction: 'Formuliere einen prägnanten Daily-Note-Eintrag zu diesem Gespräch. Beginne mit einer H2-Überschrift. Maximal zwei kurze Absätze. Aktiv formuliert, keine Füllwörter, kein Fazit-Baustein. Deutsch, wenn der Chat deutsch ist, sonst englisch.',
+        settingsDailySection: 'Daily Note',
+        settingsDailyPattern: 'Pfadmuster',
+        settingsDailyPatternD:'Platzhalter {YYYY}, {MM}, {DD}. Default: 05 Daily Notes/{YYYY}-{MM}/{YYYY}-{MM}-{DD}.md',
+        settingsDailyAppend:  'Standardmäßig anhängen',
+        settingsDailyAppendD: 'Wenn die Daily Note existiert, direkt anhängen statt fragen',
         saveNothing:          'Noch keine Nachrichten zum Speichern vorhanden.',
         saveModalTitle:       'Chat im Vault speichern',
         saveModalFolder:      'Ordner',
@@ -330,6 +372,9 @@ const DEFAULT_SETTINGS = {
     contextFolderEnabled:   true,
     contextFolderMaxChars:  8000,
     contextCreateDefaults:  true,
+    // Daily Note
+    dailyNotePattern:  '05 Daily Notes/{YYYY}-{MM}/{YYYY}-{MM}-{DD}.md',
+    dailyNoteAppend:   true,
 };
 
 // PARA-Vorlagen für die Vault-Ersteinrichtung
@@ -509,6 +554,9 @@ class OllamaChatView extends ItemView {
 
         const saveBtn = controls.createEl('button', { text: t.saveBtn, cls: 'euria-save-btn' });
         saveBtn.onclick = () => this.openSaveModal();
+
+        const dailyBtn = controls.createEl('button', { text: t.dailyBtn, cls: 'euria-save-btn' });
+        dailyBtn.onclick = () => this.openDailyNoteFlow();
 
         const clearBtn = controls.createEl('button', { text: t.clear, cls: 'euria-clear-btn' });
         clearBtn.onclick = () => {
@@ -981,6 +1029,97 @@ ${chatSnippet}`;
                 try { await this.app.vault.createFolder(current); } catch (_) { /* existiert evtl. parallel */ }
             }
         }
+    }
+
+    // ─── Daily Note ───────────────────────────────────────────────────────────
+
+    async openDailyNoteFlow() {
+        const t = I18N[this.plugin.settings.language] || I18N.en;
+        if (!this.messages.length) { new Notice(t.dailyNothing); return; }
+
+        new Notice(t.dailyGenerating);
+        const entry = await this._generateDailyNoteEntry();
+        new DailyNoteModal(this.app, this.plugin, this, t, entry).open();
+    }
+
+    async _generateDailyNoteEntry() {
+        const t = I18N[this.plugin.settings.language] || I18N.en;
+        const chatSnippet = this.messages
+            .slice(-10)
+            .map(m => `${m.role === 'user' ? 'User' : 'Assistant'}: ${(m.apiContent || m.content).slice(0, 800)}`)
+            .join('\n\n');
+        const prompt = `${t.dailyPromptInstruction}\n\n---\n${chatSnippet}\n---`;
+
+        try {
+            const response = await requestUrl({
+                url:    `${OLLAMA_BASE_URL}/v1/chat/completions`,
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    model:       this.plugin.settings.model,
+                    messages:    [{ role: 'user', content: prompt }],
+                    max_tokens:  500,
+                    temperature: 0.5,
+                }),
+                throw: false,
+            });
+            if (response.status >= 400 || response.status === 0) return this._fallbackEntry();
+            const raw = (response.json?.choices?.[0]?.message?.content || '').trim();
+            if (!raw) return this._fallbackEntry();
+            // Falls das Modell keinen H2-Header liefert, einen Default-Header voranstellen
+            return /^##\s/m.test(raw) ? raw : `## ${this._timeHeader()}\n\n${raw}`;
+        } catch (_) {
+            return this._fallbackEntry();
+        }
+    }
+
+    _fallbackEntry() {
+        const last = [...this.messages].reverse().find(m => m.role === 'assistant');
+        const content = last?.content || '';
+        return `## ${this._timeHeader()}\n\n${content.slice(0, 1000)}`;
+    }
+
+    _timeHeader() {
+        const now = new Date();
+        const pad = (n) => String(n).padStart(2, '0');
+        return `Chat-Eintrag ${pad(now.getHours())}:${pad(now.getMinutes())}`;
+    }
+
+    resolveDailyNotePath() {
+        const now = new Date();
+        const pad = (n) => String(n).padStart(2, '0');
+        const Y = String(now.getFullYear());
+        const M = pad(now.getMonth() + 1);
+        const D = pad(now.getDate());
+        const pattern = this.plugin.settings.dailyNotePattern || '05 Daily Notes/{YYYY}-{MM}/{YYYY}-{MM}-{DD}.md';
+        return pattern.replace(/\{YYYY\}/g, Y).replace(/\{MM\}/g, M).replace(/\{DD\}/g, D);
+    }
+
+    /**
+     * Schreibt den Eintrag an die Daily Note. Legt Datei + Ordner an falls fehlt.
+     * mode: 'append' oder 'create'
+     * Rückgabe: { path, mode }
+     */
+    async writeDailyNoteEntry(path, mode, entry) {
+        const parent = path.split('/').slice(0, -1).join('/');
+        if (parent) await this._ensureFolder(parent);
+
+        const existing = this.app.vault.getAbstractFileByPath(path);
+        const now = new Date();
+        const pad = (n) => String(n).padStart(2, '0');
+        const dateStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+
+        if (existing) {
+            if (mode === 'create') throw new Error('Datei existiert bereits');
+            const prev = await this.app.vault.read(existing);
+            const joined = prev.replace(/\n+$/, '') + '\n\n' + entry.trim() + '\n';
+            await this.app.vault.modify(existing, joined);
+            return { path, mode: 'append' };
+        }
+
+        const frontmatter = `---\ndate: ${dateStr}\ntags: [daily]\n---\n\n# ${dateStr}\n\n`;
+        await this.app.vault.create(path, frontmatter + entry.trim() + '\n');
+        return { path, mode: 'create' };
     }
 
     async _buildApiMessages(newUserText) {
@@ -1659,6 +1798,82 @@ class ConflictResolutionModal extends Modal {
     }
 }
 
+// ─── Daily Note Modal ─────────────────────────────────────────────────────────
+
+class DailyNoteModal extends Modal {
+    constructor(app, plugin, view, t, entryDraft) {
+        super(app);
+        this.plugin = plugin;
+        this.view   = view;
+        this.t      = t;
+        this.entry  = entryDraft;
+        this.targetPath = view.resolveDailyNotePath();
+        const exists = !!app.vault.getAbstractFileByPath(this.targetPath);
+        this.mode = exists ? 'append' : 'create';
+    }
+
+    onOpen() {
+        const t = this.t;
+        const { contentEl, titleEl } = this;
+        titleEl.setText(`📅 ${t.dailyModalTitle}`);
+        contentEl.empty();
+
+        new Setting(contentEl)
+            .setName(t.dailyModalTarget)
+            .addText(txt => {
+                txt.setValue(this.targetPath);
+                txt.inputEl.style.width = '100%';
+                txt.onChange(v => { this.targetPath = v; });
+            });
+
+        const modeWrap = contentEl.createDiv();
+        modeWrap.style.cssText = 'margin:12px 0;display:flex;flex-direction:column;gap:4px;';
+        modeWrap.createEl('div', { text: t.dailyModalMode }).style.fontWeight = '600';
+
+        const groupName = `euria-daily-${Math.random().toString(36).slice(2, 8)}`;
+
+        const appendLabel = modeWrap.createEl('label');
+        appendLabel.style.cssText = 'display:flex;align-items:center;gap:6px;cursor:pointer;';
+        const appendRadio = appendLabel.createEl('input', { attr: { type: 'radio', name: groupName } });
+        appendRadio.checked = this.mode === 'append';
+        appendRadio.onchange = () => { if (appendRadio.checked) this.mode = 'append'; };
+        appendLabel.createEl('span', { text: t.dailyModalAppend });
+
+        const createLabel = modeWrap.createEl('label');
+        createLabel.style.cssText = 'display:flex;align-items:center;gap:6px;cursor:pointer;';
+        const createRadio = createLabel.createEl('input', { attr: { type: 'radio', name: groupName } });
+        createRadio.checked = this.mode === 'create';
+        createRadio.onchange = () => { if (createRadio.checked) this.mode = 'create'; };
+        createLabel.createEl('span', { text: t.dailyModalCreate });
+
+        contentEl.createEl('h4', { text: t.dailyModalEntry });
+        const textarea = contentEl.createEl('textarea');
+        textarea.value = this.entry;
+        textarea.style.cssText = 'width:100%;min-height:220px;font-family:var(--font-monospace);font-size:12px;padding:8px;';
+        textarea.oninput = () => { this.entry = textarea.value; };
+
+        const btnRow = contentEl.createDiv({ cls: 'modal-button-container' });
+        btnRow.style.cssText = 'display:flex;justify-content:flex-end;gap:8px;margin-top:16px;';
+
+        const cancelBtn = btnRow.createEl('button', { text: t.dailyModalCancel });
+        cancelBtn.onclick = () => this.close();
+
+        const saveBtn = btnRow.createEl('button', { text: t.dailyModalSave, cls: 'mod-cta' });
+        saveBtn.onclick = () => this._handleSave();
+    }
+
+    async _handleSave() {
+        const t = this.t;
+        try {
+            const result = await this.view.writeDailyNoteEntry(this.targetPath, this.mode, this.entry);
+            new Notice(result.mode === 'append' ? t.dailyAppended(result.path) : t.dailyCreated(result.path));
+            this.close();
+        } catch (err) {
+            new Notice(t.dailyFailed(err.message || String(err)));
+        }
+    }
+}
+
 // ─── Settings Tab ─────────────────────────────────────────────────────────────
 
 class OllamaSettingTab extends PluginSettingTab {
@@ -1897,6 +2112,31 @@ class OllamaSettingTab extends PluginSettingTab {
                     await this.plugin.saveSettings();
                 })
             );
+
+        // ─── Daily Note ─────────────────────────────────────────────────────
+        containerEl.createEl('h3', { text: t.settingsDailySection });
+
+        new Setting(containerEl)
+            .setName(t.settingsDailyPattern)
+            .setDesc(t.settingsDailyPatternD)
+            .addText(txt => txt
+                .setValue(this.plugin.settings.dailyNotePattern)
+                .onChange(async v => {
+                    this.plugin.settings.dailyNotePattern = v.trim() || '05 Daily Notes/{YYYY}-{MM}/{YYYY}-{MM}-{DD}.md';
+                    await this.plugin.saveSettings();
+                })
+            );
+
+        new Setting(containerEl)
+            .setName(t.settingsDailyAppend)
+            .setDesc(t.settingsDailyAppendD)
+            .addToggle(tg => tg
+                .setValue(this.plugin.settings.dailyNoteAppend)
+                .onChange(async v => {
+                    this.plugin.settings.dailyNoteAppend = v;
+                    await this.plugin.saveSettings();
+                })
+            );
     }
 }
 
@@ -1969,6 +2209,16 @@ class LocalOllamaPlugin extends Plugin {
         });
 
         this.addCommand({
+            id:       'ollama-daily-note',
+            name:     t.cmdDaily,
+            callback: async () => {
+                await this.activateView();
+                const leaf = this.app.workspace.getLeavesOfType(OLLAMA_VIEW_TYPE)[0];
+                if (leaf?.view) leaf.view.openDailyNoteFlow();
+            },
+        });
+
+        this.addCommand({
             id:       'ollama-vault-setup',
             name:     t.cmdSetup,
             callback: () => new VaultSetupModal(this.app, this, I18N[this.settings.language] || I18N.en).open(),
@@ -2000,7 +2250,8 @@ class LocalOllamaPlugin extends Plugin {
         const saved = await this.loadData() || {};
         const { model, systemPrompt, language,
                 saveFallbackFolder, saveTriggerEnabled, saveDefaultTags, saveOpenAfter,
-                contextFolder, contextFolderEnabled, contextFolderMaxChars, contextCreateDefaults } = saved;
+                contextFolder, contextFolderEnabled, contextFolderMaxChars, contextCreateDefaults,
+                dailyNotePattern, dailyNoteAppend } = saved;
         this.settings = Object.assign({}, DEFAULT_SETTINGS, {
             ...(model        && { model }),
             ...(systemPrompt && { systemPrompt }),
@@ -2013,6 +2264,8 @@ class LocalOllamaPlugin extends Plugin {
             ...(contextFolderEnabled !== undefined  && { contextFolderEnabled }),
             ...(contextFolderMaxChars !== undefined && { contextFolderMaxChars }),
             ...(contextCreateDefaults !== undefined && { contextCreateDefaults }),
+            ...(dailyNotePattern && { dailyNotePattern }),
+            ...(dailyNoteAppend !== undefined && { dailyNoteAppend }),
         });
     }
 
