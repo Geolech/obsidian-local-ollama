@@ -1,9 +1,9 @@
 {
   "id": "local-ollama-websearch",
   "name": "Local Ollama with Web Search",
-  "version": "2.8.0",
+  "version": "2.8.1",
   "minAppVersion": "1.0.0",
-  "description": "Chat with local Ollama AI models. Includes built-in DuckDuckGo web search – no API key, no cloud, no telemetry.",
+  "description": "Chat with local Ollama models. Save chat logs and daily-note entries straight to your vault, scaffold a PARA folder structure from the plugin settings, and search the web via DuckDuckGo. Fully local – no API key, no cloud, no telemetry.",
   "author": "Frank Lechtenberg",
   "authorUrl": "https://github.com/Geolech",
   "isDesktopOnly": false
