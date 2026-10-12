@@ -113,6 +113,28 @@ const I18N = {
         saveCalloutTitle:     'AI-generated content',
         saveCalloutBody:      (d, t, m) => `This chat was recorded on ${d} at ${t} with \`${m}\` via the "Local Ollama" plugin.`,
         saveHistoryHeading:   'Conversation',
+        // Direct save / folder create (prompt-driven, no modal)
+        tagSystem:            'Local Ollama',
+        directSaveLastNothing:'No assistant answer available to save yet.',
+        pathInvalid:          (p, r) => `Invalid folder path "${p}" (${r}).`,
+        pathReasonEmpty:      'empty',
+        pathReasonAbsolute:   'must be relative to the vault root',
+        pathReasonRelative:   'relative segments (.. or .) are not allowed',
+        pathReasonChars:      'contains illegal characters',
+        pathReasonSegment:    'empty path segment',
+        folderCreated:        (p) => `Folder created: [[${p}]]`,
+        folderExists:         (p) => `Folder already exists: [[${p}]]`,
+        savedChatTo:          (p) => `Chat saved: [[${p}]]`,
+        savedLastTo:          (p) => `Last answer saved: [[${p}]]`,
+        conflictPrompt:       (p) => `A file already exists at \`${p}\`. What do you want to do?`,
+        btnOverwrite:         'Overwrite',
+        btnRename:            'Keep both (rename)',
+        btnAppend:            'Append',
+        btnSkipConflict:      'Cancel',
+        overwritten:          (p) => `Overwritten: [[${p}]]`,
+        appendedTo:           (p) => `Appended to [[${p}]]`,
+        renamedSavedTo:       (p) => `Saved as [[${p}]]`,
+        conflictSkipped:      'Save cancelled.',
         // Vault Setup
         settingsSaveSection:  'Save to vault',
         settingsSaveFallback: 'Fallback folder',
@@ -268,6 +290,28 @@ const I18N = {
         saveCalloutTitle:     'KI-generierter Inhalt',
         saveCalloutBody:      (d, t, m) => `Dieser Chat wurde am ${d} um ${t} Uhr mit \`${m}\` über das Plugin „Lokales Ollama" im Vault abgelegt.`,
         saveHistoryHeading:   'Verlauf',
+        // Direkt-Speichern / Ordner anlegen per Prompt (ohne Modal)
+        tagSystem:            'Lokales Ollama',
+        directSaveLastNothing:'Noch keine KI-Antwort zum Speichern vorhanden.',
+        pathInvalid:          (p, r) => `Ungültiger Ordnerpfad „${p}" (${r}).`,
+        pathReasonEmpty:      'leer',
+        pathReasonAbsolute:   'muss relativ zum Vault-Root sein',
+        pathReasonRelative:   'relative Segmente (.. oder .) sind nicht erlaubt',
+        pathReasonChars:      'enthält unerlaubte Zeichen',
+        pathReasonSegment:    'leeres Pfadsegment',
+        folderCreated:        (p) => `Ordner angelegt: [[${p}]]`,
+        folderExists:         (p) => `Ordner existiert bereits: [[${p}]]`,
+        savedChatTo:          (p) => `Chat gespeichert: [[${p}]]`,
+        savedLastTo:          (p) => `Letzte Antwort gespeichert: [[${p}]]`,
+        conflictPrompt:       (p) => `Datei existiert bereits unter \`${p}\`. Was tun?`,
+        btnOverwrite:         'Überschreiben',
+        btnRename:            'Beide behalten (umbenennen)',
+        btnAppend:            'Anhängen',
+        btnSkipConflict:      'Abbrechen',
+        overwritten:          (p) => `Überschrieben: [[${p}]]`,
+        appendedTo:           (p) => `An [[${p}]] angehängt`,
+        renamedSavedTo:       (p) => `Als [[${p}]] gespeichert`,
+        conflictSkipped:      'Speichern abgebrochen.',
         // Vault Setup
         settingsSaveSection:  'Speichern in Vault',
         settingsSaveFallback: 'Fallback-Ordner',
@@ -628,8 +672,24 @@ class OllamaChatView extends ItemView {
 
         for (const msg of this.messages) {
             const msgEl = messagesEl.createDiv(`euria-message euria-message-${msg.role}`);
-            msgEl.createEl('div', { text: msg.role === 'user' ? t.tagYou : t.tagOllama, cls: 'euria-message-label' });
+            let label;
+            if (msg.role === 'user') label = t.tagYou;
+            else if (msg.role === 'system') label = t.tagSystem || 'System';
+            else label = t.tagOllama;
+            msgEl.createEl('div', { text: label, cls: 'euria-message-label' });
             msgEl.createEl('div', { text: msg.content, cls: 'euria-message-content' });
+            if (Array.isArray(msg.actions) && msg.actions.length) {
+                const actionsEl = msgEl.createDiv('euria-message-actions');
+                for (const action of msg.actions) {
+                    const b = actionsEl.createEl('button', { text: action.label, cls: 'euria-action-btn' });
+                    b.onclick = async () => {
+                        if (action.disabled) return;
+                        // Buttons nach erstem Klick deaktivieren (keine Doppelausführung)
+                        for (const sib of Array.from(actionsEl.children)) sib.setAttribute('disabled', 'true');
+                        try { await action.handler(); } catch (e) { new Notice(String(e?.message || e)); }
+                    };
+                }
+            }
         }
 
         requestAnimationFrame(() => { messagesEl.scrollTop = messagesEl.scrollHeight; });
@@ -667,7 +727,23 @@ class OllamaChatView extends ItemView {
             if (!text || this.isLoading) return;
 
             // Trigger-Phrasen erkennen – öffnet entsprechendes Modal statt Prompt an Ollama
+            // Reihenfolge: spezifische Trigger (Ordner / Direkt-Save) vor generischen (Daily / Save-Modal),
+            // damit „leg Ordner X an" nicht am generischen „leg … ab" vorbei greift.
             if (this.plugin.settings.saveTriggerEnabled) {
+                const folderIntent = this._matchFolderCreate(text);
+                if (folderIntent) {
+                    textarea.value = '';
+                    this._pushUserEcho(text);
+                    await this.handleFolderCreate(folderIntent.folder);
+                    return;
+                }
+                const directIntent = this._matchDirectSave(text);
+                if (directIntent) {
+                    textarea.value = '';
+                    this._pushUserEcho(text);
+                    await this.handleDirectSave(directIntent);
+                    return;
+                }
                 if (this._matchesDailyTrigger(text)) {
                     textarea.value = '';
                     this.openDailyNoteFlow();
@@ -954,6 +1030,267 @@ class OllamaChatView extends ItemView {
         return DAILY_TRIGGER_PATTERNS.some(rx => rx.test(text));
     }
 
+    // ─── Prompt-gesteuertes Speichern & Ordneranlegen ────────────────────────
+
+    /**
+     * Erkennt Prompts wie „erstelle einen Ordner X" / „leg Ordner X an" / „create folder X".
+     * Rückgabe: { folder } oder null.
+     */
+    _matchFolderCreate(text) {
+        const stripFillers = (s) => s
+            .trim()
+            .replace(/^["„'`»«]+|["""'`»«]+$/g, '')
+            .replace(/[.?!,;:]+$/g, '')
+            .trim();
+        // DE
+        const de = text.match(/\b(?:erstelle|erzeuge|lege|leg|mache|mach|anlegen|anlegen:)\s+(?:mir\s+|bitte\s+|uns\s+)?(?:einen\s+|den\s+|einen\s+neuen\s+|neuen\s+)?(?:unter)?ordner\s+(.+?)(?:\s+an)?\s*[.?!]?\s*$/i);
+        // EN
+        const en = text.match(/\b(?:create|make|add)\s+(?:a\s+|the\s+|a\s+new\s+|new\s+)?(?:sub)?folder\s+(.+?)\s*[.?!]?\s*$/i);
+        const m = de || en;
+        if (!m) return null;
+        const captured = stripFillers(m[1]);
+        if (!captured) return null;
+        // Füllwort-Captures ablehnen („im Vault", „in meinem Vault", „here")
+        if (/^(?:im\s+vault|in\s+meinem?\s+vault|in\s+my\s+vault|here|hier|bitte)\b/i.test(captured)) return null;
+        if (captured.length < 1) return null;
+        return { folder: captured };
+    }
+
+    /**
+     * Erkennt Prompts wie „leg das in Ordner X ab" / „speicher die letzte Antwort in Ordner X" / „save this to folder X".
+     * Rückgabe: { folder, filename?, scope: 'chat'|'last' } oder null.
+     */
+    _matchDirectSave(text) {
+        // Muss eine Speicher-Absicht + einen Ordner-Verweis enthalten
+        const hasSaveVerb = /\b(?:leg(?:e|st)?|speicher(?:e|st)?|ablegen|abzulegen|abspeichern|save|put|store)\b/i.test(text);
+        const hasFolderWord = /\b(?:ordner|folder)\b/i.test(text);
+        if (!hasSaveVerb || !hasFolderWord) return null;
+
+        // Ordner-Pfad extrahieren – zuerst Quoted, sonst alles bis Satzende
+        let folder = null;
+        const quoted = text.match(/\b(?:ordner|folder)\s+["„'`»«]([^"""'`»«]+)["""'`»«]/i);
+        if (quoted) {
+            folder = quoted[1].trim();
+        } else {
+            const trailing = text.match(/\b(?:ordner|folder)\s+(.+?)(?:\s+ab(?:legen|zulegen|speichern)?)?\s*[.?!]?\s*$/i);
+            if (trailing) folder = trailing[1].trim();
+        }
+        if (!folder) return null;
+        folder = folder.replace(/^["„'`»«]+|["""'`»«]+$/g, '').replace(/[.?!,;:]+$/g, '').trim();
+        if (!folder) return null;
+        // Füllwort-Captures ablehnen
+        if (/^(?:im|in|den|dem|the|meinen|meinem|my|a|an|einen|einer|einem)\s/i.test(folder)) return null;
+
+        // Scope: letzte Antwort vs. ganzer Chat
+        const lastKw = /\b(?:letzte\s+antwort|letztes\s+ergebnis|das\s+ergebnis|die\s+antwort|the\s+(?:last\s+)?answer|last\s+response|the\s+result|nur\s+(?:die\s+)?antwort)\b/i;
+        const scope = lastKw.test(text) ? 'last' : 'chat';
+
+        // Optionaler Dateiname: „als FILENAME in Ordner X" / „as FILENAME to folder X"
+        let filename = null;
+        const fnQuoted = text.match(/\bals\s+["„'`»«]([^"""'`»«]+)["""'`»«]\s+(?:in|nach)\s+(?:den\s+|dem\s+|einen\s+)?ordner/i)
+                      || text.match(/\bas\s+["'`]([^"'`]+)["'`]\s+(?:to|in)\s+(?:the\s+|a\s+)?folder/i);
+        const fnBare   = text.match(/\bals\s+([A-Za-zÄÖÜäöüß0-9][^"""'`»«]{1,120}?)\s+(?:in|nach)\s+(?:den\s+|dem\s+|einen\s+)?ordner/i)
+                      || text.match(/\bas\s+([A-Za-z0-9][^"'`]{1,120}?)\s+(?:to|in)\s+(?:the\s+|a\s+)?folder/i);
+        const fnMatch = fnQuoted || fnBare;
+        if (fnMatch) {
+            const cand = fnMatch[1].trim().replace(/\.md$/i, '');
+            // „md" oder generische Begriffe nicht als Dateinamen übernehmen
+            if (cand && !/^(?:md|markdown|note|notiz|eine\s+notiz|a\s+note|datei|file)$/i.test(cand)) {
+                filename = cand;
+            }
+        }
+
+        return { folder, filename, scope };
+    }
+
+    /**
+     * Validiert einen Vault-relativen Pfad.
+     * Rückgabe: { ok: true, path } oder { ok: false, error }
+     */
+    _validateVaultPath(input) {
+        const t = I18N[this.plugin.settings.language] || I18N.en;
+        if (typeof input !== 'string') return { ok: false, error: t.pathReasonEmpty };
+        let p = input.replace(/\\/g, '/').trim();
+        p = p.replace(/^["„'`»«]+|["""'`»«]+$/g, '').trim();
+        p = p.replace(/[.?!,;:]+$/g, '').trim();
+        if (!p) return { ok: false, error: t.pathReasonEmpty };
+        if (p.startsWith('/')) return { ok: false, error: t.pathReasonAbsolute };
+        // Windows-reservierte Dateinamen (plugin ist isDesktopOnly: false → auch Windows)
+        const WIN_RESERVED = /^(?:CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])(?:\.|$)/i;
+        const segments = p.split('/').map(s => s.trim());
+        for (const seg of segments) {
+            if (!seg) return { ok: false, error: t.pathReasonSegment };
+            if (seg === '..' || seg === '.') return { ok: false, error: t.pathReasonRelative };
+            if (/[<>:"|?*\x00-\x1f]/.test(seg)) return { ok: false, error: t.pathReasonChars };
+            // Führende Punkte (versteckte Dateien), trailing dots/spaces (unter Windows ungültig)
+            if (seg.startsWith('.') || /[. ]$/.test(seg)) return { ok: false, error: t.pathReasonChars };
+            if (WIN_RESERVED.test(seg)) return { ok: false, error: t.pathReasonChars };
+        }
+        return { ok: true, path: segments.join('/') };
+    }
+
+    _pushSystem(content, { actions = null } = {}) {
+        // Nachrichten mit Action-Buttons sind transient (nicht persistiert, nicht wiederhergestellt)
+        this.messages.push({ role: 'system', content, actions });
+        this.render();
+        if (!actions) this.plugin.persistSession(this);
+    }
+
+    _pushUserEcho(text) {
+        this.messages.push({ role: 'user', content: text, apiContent: text });
+        this.render();
+        this.plugin.persistSession(this);
+    }
+
+    _removeTransient() {
+        this.messages = this.messages.filter(m => !(m.role === 'system' && Array.isArray(m.actions) && m.actions.length));
+    }
+
+    async handleFolderCreate(rawPath) {
+        const t = I18N[this.plugin.settings.language] || I18N.en;
+        const v = this._validateVaultPath(rawPath);
+        if (!v.ok) {
+            this._pushSystem(t.pathInvalid(rawPath, v.error));
+            return;
+        }
+        const existing = this.app.vault.getAbstractFileByPath(v.path);
+        if (existing && existing instanceof TFolder) {
+            this._pushSystem(t.folderExists(v.path));
+            return;
+        }
+        if (existing) {
+            this._pushSystem(t.pathInvalid(v.path, t.pathReasonChars));
+            return;
+        }
+        try {
+            await this._ensureFolder(v.path);
+            this._pushSystem(t.folderCreated(v.path));
+        } catch (e) {
+            this._pushSystem(t.saveFailed(String(e?.message || e)));
+        }
+    }
+
+    async handleDirectSave({ folder, filename, scope }) {
+        const t = I18N[this.plugin.settings.language] || I18N.en;
+
+        const v = this._validateVaultPath(folder);
+        if (!v.ok) {
+            this._pushSystem(t.pathInvalid(folder, v.error));
+            return;
+        }
+
+        const messagesToSave = this._selectMessagesForScope(scope);
+        if (!messagesToSave.length) {
+            this._pushSystem(scope === 'last' ? t.directSaveLastNothing : t.saveNothing);
+            return;
+        }
+
+        const defaultTitle = scope === 'last' ? 'Letzte Antwort' : 'Chat';
+        const title = this._sanitizeFilename(
+            filename || this._deriveTitleFromMessages(messagesToSave) || defaultTitle
+        );
+        const tags = (this.plugin.settings.saveDefaultTags || '')
+            .split(',').map(s => s.trim()).filter(Boolean);
+        const content = this.buildMarkdownContent({ title, tags, messages: messagesToSave });
+
+        try {
+            const finalPath = await this.writeMarkdownToVault(v.path, title, content, { onConflict: 'throw' });
+            this._pushSystem(scope === 'last' ? t.savedLastTo(finalPath) : t.savedChatTo(finalPath));
+            if (this.plugin.settings.saveOpenAfter) {
+                const file = this.app.vault.getAbstractFileByPath(finalPath);
+                if (file) await this.app.workspace.getLeaf(true).openFile(file);
+            }
+        } catch (e) {
+            if (e?.code === 'EEXIST') {
+                await this._askConflictResolution({ targetPath: e.path, content });
+            } else {
+                this._pushSystem(t.saveFailed(String(e?.message || e)));
+            }
+        }
+    }
+
+    _selectMessagesForScope(scope) {
+        if (scope !== 'last') {
+            return this.messages.filter(m => m.role === 'user' || m.role === 'assistant');
+        }
+        // Rückwärts einmalig durchlaufen: letzte Assistant-Antwort + unmittelbar vorherige User-Frage
+        let lastAssistant = null;
+        let prevUser = null;
+        for (let i = this.messages.length - 1; i >= 0; i--) {
+            const m = this.messages[i];
+            if (!lastAssistant && m.role === 'assistant') { lastAssistant = m; continue; }
+            if (lastAssistant && m.role === 'user') { prevUser = m; break; }
+        }
+        if (!lastAssistant) return [];
+        return prevUser ? [prevUser, lastAssistant] : [lastAssistant];
+    }
+
+    _deriveTitleFromMessages(msgs) {
+        const firstUser = msgs.find(m => m.role === 'user');
+        if (!firstUser) return null;
+        const raw = (firstUser.apiContent || firstUser.content || '').trim();
+        if (!raw) return null;
+        const firstLine = raw.split(/\n/)[0].trim();
+        const words = firstLine.split(/\s+/).slice(0, 6).join(' ');
+        return words.slice(0, 80);
+    }
+
+    async _askConflictResolution({ targetPath, content }) {
+        const t = I18N[this.plugin.settings.language] || I18N.en;
+        const lastSlash = targetPath.lastIndexOf('/');
+        const folder = lastSlash >= 0 ? targetPath.slice(0, lastSlash) : '';
+        const title  = targetPath.slice(lastSlash + 1).replace(/\.md$/i, '');
+        const self = this;
+
+        const finalize = (msg) => {
+            self._removeTransient();
+            self._pushSystem(msg);
+        };
+
+        const run = (handler, okMsg) => async () => {
+            try { await handler(); finalize(okMsg); }
+            catch (e) { finalize(t.saveFailed(String(e?.message || e))); }
+        };
+
+        const actions = [
+            {
+                label: t.btnOverwrite,
+                handler: run(async () => {
+                    const existing = self.app.vault.getAbstractFileByPath(targetPath);
+                    if (existing) await self.app.vault.modify(existing, content);
+                    else          await self.app.vault.create(targetPath, content);
+                }, t.overwritten(targetPath)),
+            },
+            {
+                label: t.btnAppend,
+                handler: run(async () => {
+                    const existing = self.app.vault.getAbstractFileByPath(targetPath);
+                    if (!existing) { await self.app.vault.create(targetPath, content); return; }
+                    const prev = await self.app.vault.read(existing);
+                    // Nur den Verlaufsteil anhängen, damit das bestehende Frontmatter nicht dupliziert wird
+                    const sepIdx = content.indexOf(`## ${t.saveHistoryHeading}`);
+                    const appendBody = sepIdx >= 0 ? content.slice(sepIdx) : content;
+                    await self.app.vault.modify(existing, prev.replace(/\s*$/, '') + '\n\n---\n\n' + appendBody);
+                }, t.appendedTo(targetPath)),
+            },
+            {
+                label: t.btnRename,
+                handler: async () => {
+                    try {
+                        const newPath = await self.writeMarkdownToVault(folder, title, content);
+                        finalize(t.renamedSavedTo(newPath));
+                    } catch (e) { finalize(t.saveFailed(String(e?.message || e))); }
+                },
+            },
+            {
+                label: t.btnSkipConflict,
+                handler: async () => finalize(t.conflictSkipped),
+            },
+        ];
+
+        this._pushSystem(t.conflictPrompt(targetPath), { actions });
+    }
+
     openSaveModal() {
         const t = I18N[this.plugin.settings.language] || I18N.en;
         if (!this.messages.length) {
@@ -1061,7 +1398,7 @@ ${chatSnippet}`;
     /**
      * Baut die endgültige Markdown-Datei aus dem aktuellen Chat.
      */
-    buildMarkdownContent({ title, tags }) {
+    buildMarkdownContent({ title, tags, messages }) {
         const t = I18N[this.plugin.settings.language] || I18N.en;
         const now = new Date();
         const pad = (n) => String(n).padStart(2, '0');
@@ -1088,7 +1425,9 @@ ${chatSnippet}`;
         lines.push(`> ${t.saveCalloutBody(dateStr, timeStr, this.plugin.settings.model)}`);
         lines.push('', `## ${t.saveHistoryHeading}`, '');
 
-        for (const msg of this.messages) {
+        const source = messages || this.messages;
+        for (const msg of source) {
+            if (msg.role !== 'user' && msg.role !== 'assistant') continue;
             const heading = msg.role === 'user' ? t.tagYou : t.tagOllama;
             lines.push(`### ${heading}`, '', msg.content, '');
         }
@@ -1097,27 +1436,41 @@ ${chatSnippet}`;
     }
 
     /**
-     * Schreibt die Datei. Legt fehlende Ordner an, hängt Suffix an bei Konflikt.
+     * Schreibt die Datei. Legt fehlende Ordner an.
+     * onConflict: 'suffix' hängt bei Konflikt " 2", " 3", … an und gibt den finalen Pfad zurück.
+     *             'throw' wirft bei bestehender Datei einen Error mit code='EEXIST'.
      * Rückgabe: finaler Pfad.
      */
-    async writeMarkdownToVault(folderPath, filename, content) {
+    async writeMarkdownToVault(folderPath, filename, content, { onConflict = 'suffix' } = {}) {
         const cleanFolder = this._sanitizeFolder(folderPath);
         const cleanName   = this._sanitizeFilename(filename);
-
         if (cleanFolder) await this._ensureFolder(cleanFolder);
 
-        let finalPath = cleanFolder ? `${cleanFolder}/${cleanName}.md` : `${cleanName}.md`;
-        let counter = 2;
-        while (this.app.vault.getAbstractFileByPath(finalPath)) {
-            finalPath = cleanFolder
-                ? `${cleanFolder}/${cleanName} ${counter}.md`
-                : `${cleanName} ${counter}.md`;
-            counter++;
-            if (counter > 999) throw new Error('Too many filename conflicts');
+        const makePath = (n) => {
+            const suffix = n > 1 ? ` ${n}` : '';
+            return cleanFolder ? `${cleanFolder}/${cleanName}${suffix}.md` : `${cleanName}${suffix}.md`;
+        };
+
+        if (onConflict === 'throw' && this.app.vault.getAbstractFileByPath(makePath(1))) {
+            const err = new Error('EEXIST');
+            err.code = 'EEXIST';
+            err.path = makePath(1);
+            throw err;
         }
 
-        await this.app.vault.create(finalPath, content);
-        return finalPath;
+        let counter = 1;
+        for (;;) {
+            const path = makePath(counter);
+            try {
+                await this.app.vault.create(path, content);
+                return path;
+            } catch (e) {
+                // Nur bei Konflikt weiter versuchen; alle anderen Fehler durchreichen
+                if (onConflict !== 'suffix' || !this.app.vault.getAbstractFileByPath(path)) throw e;
+                counter++;
+                if (counter > 999) throw new Error('Too many filename conflicts');
+            }
+        }
     }
 
     async _ensureFolder(path) {
@@ -1247,7 +1600,9 @@ ${chatSnippet}`;
         }
 
         const msgs = [{ role: 'system', content: systemContent }];
-        for (const msg of this.messages.slice(-6)) {
+        // UI-System-Hinweise (Save-/Folder-Feedback) nicht an das Modell schicken
+        const uiMessages = this.messages.filter(m => m.role === 'user' || m.role === 'assistant');
+        for (const msg of uiMessages.slice(-6)) {
             msgs.push({ role: msg.role, content: msg.apiContent || msg.content });
         }
         msgs.push({ role: 'user', content: newUserText });
@@ -2361,8 +2716,12 @@ class LocalOllamaPlugin extends Plugin {
     onunload() {}
 
     persistSession(view) {
+        // Nachrichten mit Action-Buttons sind transient (Callbacks nicht serialisierbar)
+        const persistable = (view.messages || [])
+            .filter(m => !(Array.isArray(m.actions) && m.actions.length))
+            .map(({ actions, ...rest }) => rest);
         this.sessionData = {
-            messages:    (view.messages || []).slice(-50), // Cap: nicht endlos wachsen lassen
+            messages:    persistable.slice(-50),
             noteContext: view.noteContext || null,
         };
         // Fire-and-forget – kein await nötig im UI-Pfad

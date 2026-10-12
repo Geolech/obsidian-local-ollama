@@ -218,3 +218,43 @@
     opacity: 0.5;
     cursor: not-allowed;
 }
+
+/* System messages (save/folder feedback, conflict prompts) */
+.euria-message-system {
+    background: var(--background-secondary);
+    border-left: 3px solid var(--interactive-accent);
+    padding: 8px 12px;
+    margin: 6px 0;
+    border-radius: 4px;
+    font-size: 13px;
+}
+
+.euria-message-system .euria-message-label {
+    font-size: 11px;
+    color: var(--text-faint);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 4px;
+}
+
+.euria-message-system .euria-message-content {
+    color: var(--text-normal);
+    white-space: pre-wrap;
+}
+
+.euria-message-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 8px;
+}
+
+.euria-message-actions .euria-action-btn {
+    font-size: 12px;
+    padding: 4px 10px;
+}
+
+.euria-message-actions .euria-action-btn[disabled] {
+    opacity: 0.5;
+    cursor: not-allowed;
+}

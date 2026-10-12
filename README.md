@@ -1,144 +1,210 @@
 # Local Ollama with Web Search
 
-Ein Obsidian-Plugin, das lokale KI-Modelle via [Ollama](https://ollama.com) direkt in Obsidian einbindet. Chat-Assistent mit Websuche, Vault-Integration, Dauerkontext und Daily-Note-Workflow. Vollständig lokal, keine Cloud, keine API-Kosten, keine Datenweitergabe.
+> Deutsche Fassung: [README.de.md](README.de.md)
+
+An Obsidian plugin that embeds local AI models via [Ollama](https://ollama.com) directly into Obsidian. Chat assistant with web search, vault integration, persistent context and daily-note workflow. Fully local, no cloud, no API cost, no data sharing.
 
 ![Obsidian Local Ollama Screenshot](https://raw.githubusercontent.com/Geolech/obsidian-local-ollama/main/screenshot.png)
 
 ## Features
 
-### Chat und Websuche
+### Chat and web search
 
-- **Lokale Anfragen** – Chat mit dem lokalen Modell ohne Internetzugriff (`Ctrl+Enter` oder **🏠 Lokale Anfrage**)
-- **Websuche direkt im Chat** – sucht via DuckDuckGo, speist Ergebnisse als Kontext ein, antwortet mit Quellenangaben `[1]`, `[2]` (`Shift+Enter` oder **🔍 Websuche**)
-- **Notiz zusammenfassen** – aktuelle Notiz mit einem Klick komprimieren
-- **Struktur vorschlagen** – Gliederung für die offene Notiz entwickeln
-- **Notiz als Kontext laden** – Hintergrundwissen für den Chat bereitstellen
+- **Local queries** – chat with your local model without any internet access (`Ctrl+Enter` or the **Local Query** button)
+- **Web search inside the chat** – searches via DuckDuckGo, feeds the results back as context, answers with citations like `[1]`, `[2]` (`Shift+Enter` or the **Web Search** button)
+- **Summarize note** – condense the current note with one click
+- **Suggest structure** – draft an outline for the active note
+- **Load note as context** – attach background knowledge to the chat
 
-### Vault-Integration
+### Vault integration
 
-- **💾 Chatverlauf speichern** – kompletten Chat als Markdown-Datei ablegen. Das Modell schlägt Ordner, Dateiname und Tags vor, du bestätigst im Modal. Autocomplete mit allen bestehenden Vault-Ordnern, Live-Preview, YAML-Frontmatter, KI-Callout, Konflikt-Suffix bei existierenden Dateien.
-- **📅 Daily Note** – KI formuliert einen prägnanten Eintrag (H2-Überschrift, max 2 Absätze) aus dem aktuellen Chat und hängt ihn an die heutige Daily Note an. Pfadmuster mit `{YYYY}/{MM}/{DD}`-Platzhaltern konfigurierbar. Legt bei Bedarf Datei und Ordner an.
-- **📂 Chat aus Notiz laden** – gespeicherte Ollama-Chat-Datei zurück ins Chat-Fenster laden und Dialog fortsetzen.
+- **Save chat log** – stores the full chat as a Markdown file. The model proposes folder, filename and tags; you confirm in a modal. Autocomplete over all existing vault folders, live preview, YAML frontmatter, AI callout, automatic filename suffix on conflicts.
+- **Daily Note** – the model drafts a concise entry (H2 heading, at most two paragraphs) from the current chat and appends it to today's daily note. Path pattern with `{YYYY}/{MM}/{DD}` placeholders is configurable. Creates file and folder if needed.
+- **Load chat from note** – re-open a saved Ollama chat file inside the chat view and continue the dialogue.
 
-### Trigger-Phrasen
+### Prompt-driven save and folder creation
 
-Natürlichsprachige Befehle öffnen die passenden Modals direkt im Chat. Alle Trigger auf Deutsch und Englisch:
+As of version 2.9.0 two filesystem actions can be triggered directly from the chat view through natural-language phrases, without opening the save modal.
 
-| Phrase | Aktion |
+**Create a folder**
+
+Recognises phrasings such as:
+
+- "create folder `Archive/2026`"
+- "create a new folder `04 Resources/Drafts`"
+- "make a subfolder `Raw data`"
+- "add folder `02 Projects/Book`"
+
+The path is interpreted relative to the vault root. Missing intermediate folders are created recursively. If the folder already exists the plugin reports that back as a notice and does not touch anything.
+
+**Save the chat or the last answer into a specific folder**
+
+Recognises phrasings such as:
+
+- "save this to folder `04 Resources/Drafts`"
+- "save the last answer as `Checklist` to folder `01 Inbox`"
+- "put this in folder `02 Projects/Book`"
+- "store the result as `Setup notes` in folder `04 Resources/Drafts`"
+
+The target folder is created automatically if it does not exist yet. An optional filename can be passed with `as …`. Without a filename the plugin derives the title from the first few words of the first user prompt.
+
+The word `folder` must appear in the prompt – without it the direct-save flow does not kick in and the save modal is shown instead.
+
+**Scope: full chat or last answer only**
+
+If the prompt contains a phrasing like "last answer", "last response", "the answer" or "the result", only the most recent question-and-answer pair is saved instead of the full history. In every other case the complete conversation is written.
+
+**Path validation**
+
+Every path is validated before any write. The following are rejected:
+
+- empty paths
+- absolute paths (leading `/`)
+- relative segments (`.` or `..`)
+- segments containing `< > : " | ? *` or control characters
+
+An invalid path produces an inline notice in the chat; nothing is written.
+
+**Conflict handling**
+
+If the target file already exists, the plugin shows an inline prompt in the chat with four options:
+
+- **Overwrite** – replaces the entire file content with the new chat.
+- **Append** – appends only the conversation part (from `## Conversation` onwards) to the existing file, separated by a horizontal rule. The target file's frontmatter is left untouched.
+- **Keep both (rename)** – writes a new file with suffix `2`, `3`, … in the same folder.
+- **Cancel** – writes nothing.
+
+The conflict prompt is not part of the saved chat and does not survive a restart.
+
+**Relation to the existing save flow**
+
+The **Chat log** header button and the generic phrases like "save that" still open the save modal with model suggestion, autocomplete and preview. The prompt-driven variants only kick in when a concrete folder is named in the prompt; otherwise the trigger logic falls back to the modal. All triggers share one toggle in **Trigger phrases active**.
+
+> German prompt phrases work equivalently. See [README.de.md](README.de.md) for the German examples.
+
+### Trigger phrases
+
+Natural-language commands open the matching flow directly from the chat.
+
+| Phrase | Action |
 |--------|--------|
-| „speicher das", „leg das ab", „in Vault speichern" | Chatverlauf speichern |
-| „halte das in einer Daily Note fest" | Daily-Note-Modal |
-| „notier das für heute", „trag das in die Daily Note ein" | Daily-Note-Modal |
-| „Speichere das als Daily Note" | Daily-Note-Modal |
-| „log this to my daily note" | Daily-Note-Modal |
-| Jede Nachricht mit „Daily Note" | Daily-Note-Modal |
+| "save that", "save this to vault", "save that as a note" | Save-chat modal |
+| "save this to folder X", "put this in folder X" | Direct save (no modal) |
+| "create folder X", "make a new folder X" | Create folder |
+| "log this to my daily note", "add this to my daily note" | Daily-note flow |
+| "save this as a daily note" | Daily-note flow |
+| Any message containing "Daily Note" | Daily-note flow |
 
-Deaktivierbar über die Einstellung „Trigger-Phrasen aktiv".
+Toggle via the setting **Trigger phrases active**. German equivalents are documented in [README.de.md](README.de.md).
 
-### Vault-Setup
+### Vault setup
 
-- **PARA-Ordnerstruktur anlegen** – `00 Kontext`, `01 Inbox`, `02 Projekte`, `03 Bereiche`, `04 Ressourcen`, `05 Daily Notes`, `06 Archiv`, `07 Anhänge`. Alternativ Minimal-Template (nur Inbox + Archiv). Checkboxen pro Ordner, bereits existierende Ordner werden erkannt.
-- **Standard-Kontextdateien** – beim Anlegen von `00 Kontext` schreibt das Plugin drei Starter-Vorlagen rein: `Biographie.md`, `Schreibstil.md`, `Recherchevorgaben.md`.
-- **Bestehende Ordner einsortieren** – nach dem Setup bietet das Plugin an, verbleibende Top-Level-Ordner in die PARA-Struktur zu verschieben oder umzubenennen. Zuordnungs-Modal pro Fremd-Ordner. Verschiebungen laufen über `fileManager.renameFile`, Wikilinks werden automatisch aktualisiert. Konflikt-Dialog pro Fall: Zusammenführen, Umbenennen oder Überspringen.
+- **PARA folder structure** – `00 Kontext`, `01 Inbox`, `02 Projekte`, `03 Bereiche`, `04 Ressourcen`, `05 Daily Notes`, `06 Archiv`, `07 Anhänge`. Alternative minimal template (just Inbox and Archive). Checkboxes per folder; existing folders are detected.
+- **Default context files** – when `00 Kontext` is created, the plugin writes three starter templates into it: `Biographie.md`, `Schreibstil.md`, `Recherchevorgaben.md`.
+- **Sort existing folders in** – after the setup the plugin offers to move remaining top-level folders into the PARA structure or rename them. Assignment modal per external folder. Moves run through `fileManager.renameFile`, so wikilinks are updated automatically. Conflict dialog per case: merge, rename or skip.
 
-### Dauerkontext
+### Persistent context
 
-Alle `.md`-Dateien aus `00 Kontext/` werden bei **jeder** Chat-Anfrage automatisch als Hintergrundkontext an das Modell übergeben. Dateinamen werden zu Zwischenüberschriften, Frontmatter wird entfernt. Harte Obergrenze bei 8000 Zeichen (konfigurierbar). So kennt die KI dich, deinen Schreibstil und deine Recherchevorgaben in jeder Session.
+Every `.md` file in `00 Kontext/` is automatically passed as background context to the model on **every** chat request. Filenames become subheadings, frontmatter is stripped. Hard cap at 8000 characters (configurable). This way the AI knows you, your writing style and your research preferences in every session.
 
-### Persistenz
+### Persistence
 
-Nachrichten und geladener Notiz-Kontext überleben Obsidian-Neustart. Letzter Chat ist nach dem Öffnen des Chat-Fensters sofort wieder da (Begrenzung: letzte 50 Nachrichten).
+Messages and the loaded note context survive an Obsidian restart. The last chat is back as soon as you open the chat view (capped at the last 50 messages).
 
-## Voraussetzungen
+## Requirements
 
-### 1. Ollama installieren
+### 1. Install Ollama
 
 **macOS / Linux:**
 ```bash
 curl -fsSL https://ollama.com/install.sh | sh
 ```
 
-**Windows:** Installer unter [ollama.com/download](https://ollama.com/download) herunterladen.
+**Windows:** installer at [ollama.com/download](https://ollama.com/download).
 
-### 2. Modell laden
+### 2. Pull a model
 
 ```bash
 ollama pull gemma3:12b
 ```
 
-Empfohlene Modelle je nach Hardware:
+Recommended models by hardware:
 
-| Modell | RAM-Bedarf | Stärke |
-|--------|-----------|--------|
-| `gemma3:12b` | ~8 GB | Bestes Deutsch, wenig Halluzination – **Empfehlung** |
-| `llama3.1:8b` | ~5 GB | Sehr stabil, breiter Einsatz |
-| `qwen2.5:7b` | ~5 GB | Mehrsprachig, Strukturierung |
-| `gemma3:4b` | ~3 GB | Für ältere/schwächere Hardware |
+| Model | RAM | Strength |
+|-------|-----|----------|
+| `gemma3:12b` | ~8 GB | Best German output, low hallucination – **recommended** |
+| `llama3.1:8b` | ~5 GB | Very stable, broad use |
+| `qwen2.5:7b` | ~5 GB | Multilingual, structuring |
+| `gemma3:4b` | ~3 GB | For older or weaker hardware |
 
-> **Hinweis zu Modellgrößen:** 7B- und 8B-Modelle neigen stärker zu Halluzinationen als 12B-Modelle. Für zuverlässiges Deutsch empfehlen wir `gemma3:12b` auf Systemen mit mindestens 16 GB RAM.
+> **Note on model size:** 7B and 8B models hallucinate more than 12B models. For reliable German output we recommend `gemma3:12b` on systems with at least 16 GB RAM.
 
-### 3. Ollama starten
+### 3. Run Ollama
 
-Ollama läuft nach der Installation automatisch im Hintergrund. Prüfen mit:
+Ollama runs in the background after installation. Check with:
 ```bash
 ollama list
 ```
 
 ## Installation
 
-### Via Obsidian Community Plugin Store (empfohlen)
+### Via the Obsidian Community Plugin store (recommended)
 
-1. **Obsidian → Einstellungen → Community-Plugins → Durchsuchen**
-2. Nach **„Local Ollama with Web Search"** suchen
-3. **Installieren** → **Aktivieren**
+1. **Obsidian → Settings → Community plugins → Browse**
+2. Search for **"Local Ollama with Web Search"**
+3. **Install** → **Enable**
 
-Updates werden danach automatisch von Obsidian eingespielt.
+Updates will then be delivered automatically by Obsidian.
 
-### Via BRAT (für Beta-Versionen vor Store-Release)
+### Via BRAT (for pre-store beta versions)
 
-1. [BRAT Plugin](https://github.com/TfTHacker/obsidian42-brat) in Obsidian installieren und aktivieren
-2. BRAT-Einstellungen öffnen → **Add Beta Plugin**
-3. URL eingeben: `https://github.com/Geolech/obsidian-local-ollama`
-4. **Add Plugin** klicken → Plugin aktivieren
+1. Install and enable the [BRAT plugin](https://github.com/TfTHacker/obsidian42-brat) in Obsidian
+2. Open BRAT settings → **Add Beta Plugin**
+3. Enter the URL `https://github.com/Geolech/obsidian-local-ollama`
+4. Click **Add Plugin** → enable the plugin
 
-### Manuell
+### Manual
 
-1. Neueste Version unter [Releases](https://github.com/Geolech/obsidian-local-ollama/releases) herunterladen
-2. `main.js`, `manifest.json` und `styles.css` in den Ordner `.obsidian/plugins/local-ollama-websearch/` im Vault kopieren
-3. Obsidian neu starten → Plugin in den Einstellungen aktivieren
+1. Download the latest version from [Releases](https://github.com/Geolech/obsidian-local-ollama/releases)
+2. Copy `main.js`, `manifest.json` and `styles.css` into `.obsidian/plugins/local-ollama-websearch/` inside your vault
+3. Restart Obsidian → enable the plugin in Settings
 
-## Einrichtung
+## Setup
 
-1. **Obsidian → Einstellungen → Lokales Ollama**
-2. **Modell** aus der Dropdown-Liste wählen (wird automatisch von Ollama geladen)
-3. **Vault-Ersteinrichtung** (optional, einmalig): Button „Struktur anlegen…" unten im Settings-Tab → PARA-Ordner werden angelegt, Starter-Dateien in `00 Kontext/` geschrieben
-4. **Kontextdateien befüllen:** `00 Kontext/Biographie.md`, `Schreibstil.md`, `Recherchevorgaben.md` mit deinen Inhalten füllen – ab dann kennt die KI dich in jeder Session
+1. **Obsidian → Settings → Local Ollama**
+2. Pick a **model** from the dropdown (populated automatically from Ollama)
+3. **Vault setup** (optional, one-off): the **Create structure…** button at the bottom of the settings tab creates the PARA folders and writes the starter files into `00 Kontext/`
+4. **Fill in the context files:** put your content into `00 Kontext/Biographie.md`, `Schreibstil.md`, `Recherchevorgaben.md` – from that point on the AI knows you in every session
 
-Das Plugin verbindet sich automatisch mit `http://localhost:11434` – keine weitere Konfiguration nötig.
+The plugin connects to `http://localhost:11434` automatically – no further configuration needed.
 
-## Tastenkürzel und Buttons
+## Shortcuts and buttons
 
-| Aktion | Shortcut / Button |
+| Action | Shortcut / button |
 |--------|-------------------|
-| Lokale Anfrage senden | `Ctrl + Enter` oder **🏠 Lokale Anfrage** |
-| Websuche starten | `Shift + Enter` oder **🔍 Websuche** |
-| Chatverlauf im Vault speichern | **💾 Chatverlauf** (Header) |
-| Daily-Note-Eintrag | **📅 Daily Note** (Header) |
-| Chat leeren | **Leeren** (Header) |
-| Chat aus Notiz laden | **📂 Chat aus aktiver Notiz laden** (Quick Actions) |
+| Send a local query | `Ctrl + Enter` or **Local Query** |
+| Start a web search | `Shift + Enter` or **Web Search** |
+| Save the chat log to the vault | **Chat log** (header) |
+| Daily-note entry | **Daily Note** (header) |
+| Clear the chat | **Clear** (header) |
+| Load a chat from a note | **Load chat from active note** (quick actions) |
 
-Alle Aktionen zusätzlich als Command-Palette-Einträge verfügbar.
+All actions are also available as command palette entries.
 
-## Einstellungen (Übersicht)
+## Settings (overview)
 
-- **Sprache** – Deutsch oder Englisch
-- **Modell** – Dropdown aller lokal installierten Ollama-Modelle
-- **System-Prompt** – Verhaltensanweisung, mit Reset auf Default
-- **Speichern in Vault** – Fallback-Ordner, Trigger-Phrasen, Standard-Tags, Datei nach Speichern öffnen
-- **Vault-Ersteinrichtung** – PARA-Setup und Nachsortieren bestehender Ordner
-- **Kontext-Ordner** – Pfad, Toggle „automatisch laden", Max-Zeichen, Default-Dateien beim Setup
-- **Daily Note** – Pfadmuster mit `{YYYY}`/`{MM}`/`{DD}`-Platzhaltern, Append-Default
+- **Language** – German or English
+- **Model** – dropdown of all locally installed Ollama models
+- **System prompt** – behaviour instruction, with a reset to default
+- **Save to vault** – fallback folder, trigger phrases, default tags, open file after save
+- **Vault setup** – PARA scaffolding and sorting existing folders
+- **Context folder** – path, "load automatically" toggle, character cap, default files at setup
+- **Daily Note** – path pattern with `{YYYY}` / `{MM}` / `{DD}` placeholders, append-by-default
 
-## Lizenz
+## Changelog
+
+See [CHANGELOG.md](CHANGELOG.md).
+
+## License
 
 MIT – Frank Lechtenberg, TH OWL
