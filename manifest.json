@@ -1,9 +1,9 @@
 {
   "id": "local-ollama-websearch",
   "name": "Local Ollama with Web Search",
-  "version": "2.8.2",
+  "version": "2.8.3",
   "minAppVersion": "1.0.0",
-  "description": "Chat with local Ollama models directly in Obsidian. Save chat logs and daily-note entries to the vault, load vault notes as persistent context, scaffold a PARA folder structure, and run optional DuckDuckGo web search. Runs fully local without API keys, cloud calls, or telemetry.",
+  "description": "Chat with local Ollama models inside your vault. Save chat logs and daily-note entries, load notes as persistent context, scaffold a PARA folder structure, and run optional DuckDuckGo web search. Runs fully local without API keys or telemetry.",
   "author": "Frank Lechtenberg",
   "authorUrl": "https://github.com/Geolech",
   "isDesktopOnly": false

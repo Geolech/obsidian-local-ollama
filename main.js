@@ -1227,7 +1227,9 @@ ${chatSnippet}`;
 
     async _buildApiMessages(newUserText) {
         const t = I18N[this.plugin.settings.language] || I18N.en;
-        let systemContent = this.plugin.settings.systemPrompt;
+        const pluginVersion = (this.plugin.manifest && this.plugin.manifest.version) || 'unknown';
+        const pluginName = (this.plugin.manifest && this.plugin.manifest.name) || 'Local Ollama with Web Search';
+        let systemContent = `[Plugin info] You are running inside the "${pluginName}" plugin, version ${pluginVersion}. If the user asks which plugin or version they are talking to, answer with this name and version.\n\n` + this.plugin.settings.systemPrompt;
 
         // Dauerkontext aus 00 Kontext (oder konfiguriertem Ordner) laden
         if (this.plugin.settings.contextFolderEnabled) {
